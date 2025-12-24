@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: my-trip-db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: my_trip
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # my-trip:
+  #   build: .
+  #   container_name: my-trip
+  #   ports:
+  #     - "8099:3000"
+  #   environment:
+  #     DB_SOURCE: "postgresql://admin:admin123@db:5432/my-trip?sslmode=disable"
+  #   depends_on:
+  #     - db
+
+volumes:
+  postgres_data:
