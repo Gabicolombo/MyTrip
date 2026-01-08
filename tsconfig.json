@@ -20,6 +20,20 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "y/crypto": [
+        "libs/crypto/src"
+      ],
+      "y/crypto/*": [
+        "libs/crypto/src/*"
+      ],
+      "y/database": [
+        "libs/database/src"
+      ],
+      "y/database/*": [
+        "libs/database/src/*"
+      ]
+    }
   }
 }
