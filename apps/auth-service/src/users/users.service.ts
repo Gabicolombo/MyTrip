@@ -1,11 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { 
+  Injectable,
+  BadRequestException,
+  UnauthorizedException
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HashService } from '../common/crypto/hash.service';
+import { HashService } from '../../../../libs/crypto/src/hash.service';
 
 @Injectable()
 export class UsersService {
@@ -19,7 +23,7 @@ export class UsersService {
     const { email } = createUserDto;
     const userExists = await this.usersRepository.findOne({ where: { email } });
     if (userExists) {
-      throw new Error('User already exists');
+      throw new BadRequestException('User already exists');
     }
     const hashedPassword = await this.hashService.encrypt(
       createUserDto.password,
@@ -35,24 +39,16 @@ export class UsersService {
     const { email, password } = loginUserDto;
     const userExists = await this.usersRepository.findOne({ where: { email } });
     if (!userExists) {
-      throw new Error('User does not exist');
+      throw new BadRequestException('Invalid credentials');
     }
     const isMatch = await this.hashService.decrypt(
       password,
       userExists.password,
     );
     if (!isMatch) {
-      throw new Error('Invalid credentials');
+      throw new BadRequestException('Invalid credentials');
     }
     return userExists;
-  }
-
-  findAll() {
-    return `This action returns all users`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
