@@ -1,8 +1,20 @@
-import { Controller, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Patch,
+  Request,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+
+interface RequestWithUser extends Request {
+  user: { id: number };
+}
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { LoginUserDto } from './dto/login-user.dto';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -13,18 +25,18 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
-  @Post('/login')
-  login(@Body() loginUserDto: LoginUserDto) {
-    return this.usersService.login(loginUserDto);
+  @UseGuards(AuthGuard)
+  @Patch('me')
+  update(
+    @Request() req: RequestWithUser,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(+req.user.id, updateUserDto);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+  @UseGuards(AuthGuard)
+  @Delete('me')
+  remove(@Request() req: RequestWithUser) {
+    return this.usersService.remove(+req.user.id);
   }
 }

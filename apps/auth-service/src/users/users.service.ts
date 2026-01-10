@@ -1,8 +1,4 @@
-import { 
-  Injectable,
-  BadRequestException,
-  UnauthorizedException
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -51,8 +47,16 @@ export class UsersService {
     return userExists;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    try {
+      const user = await this.usersRepository.findOne({ where: { id } });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+      return this.usersRepository.update(id, updateUserDto);
+    } catch {
+      throw new BadRequestException('Error updating user');
+    }
   }
 
   remove(id: number) {
