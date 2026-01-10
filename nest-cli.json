@@ -45,6 +45,24 @@
       "compilerOptions": {
         "tsConfigPath": "libs/database/tsconfig.lib.json"
       }
+    },
+    "trip": {
+      "type": "application",
+      "root": "apps/trip",
+      "entryFile": "main",
+      "sourceRoot": "apps/trip/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/trip/tsconfig.app.json"
+      }
+    },
+    "trip-service": {
+      "type": "application",
+      "root": "apps/trip-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/trip-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/trip-service/tsconfig.app.json"
+      }
     }
   }
 }

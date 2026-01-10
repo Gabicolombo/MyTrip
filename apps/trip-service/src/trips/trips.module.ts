@@ -1,0 +1,24 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { TripsController } from './trips.controller';
+import { TripsService } from './trips.service';
+import { TripsRepository } from './repositories/trips.repository';
+import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
+import { DatabaseModule } from 'y/database';
+import { Trips } from './entities/trips.entity';
+import { TripParticipant } from './entities/trips-participants.entity';
+import { TripDestination } from './entities/trips-destinations.entity';
+import { AuthModule } from 'apps/auth-service/src/auth/auth.module';
+import { UsersModule } from 'apps/auth-service/src/users/users.module';
+
+@Module({
+  imports: [
+    DatabaseModule,
+    TypeOrmModule.forFeature([Trips, TripParticipant, TripDestination]),
+    AuthModule,
+    UsersModule,
+  ],
+  providers: [TripsService, TripsRepository, TripsParticipantsRepository],
+  controllers: [TripsController],
+})
+export class TripsModule {}
