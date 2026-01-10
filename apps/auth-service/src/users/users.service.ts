@@ -59,7 +59,15 @@ export class UsersService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: number) {
+    try {
+      const user = await this.usersRepository.findOne({ where: { id } });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+      return this.usersRepository.delete(id);
+    } catch {
+      throw new BadRequestException('Error removing user');
+    }
   }
 }
