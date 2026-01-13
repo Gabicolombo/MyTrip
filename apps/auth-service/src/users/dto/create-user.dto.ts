@@ -23,4 +23,8 @@ export class CreateUserDto {
       'Password must contain at least one letter and one number, and can include special characters @$!%*#?&',
   })
   password: string;
+
+  @IsNotEmpty()
+  @IsString()
+  nationality: string;
 }
