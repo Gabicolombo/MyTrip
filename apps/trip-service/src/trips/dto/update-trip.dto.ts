@@ -1,15 +1,14 @@
 import {
-  IsNotEmpty,
+  IsOptional,
   IsString,
   IsDate,
   MaxLength,
-  registerDecorator,
-  ValidationOptions,
-  ValidationArguments,
-  IsOptional,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
+  ValidationArguments,
+  registerDecorator,
+  ValidationOptions,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -86,29 +85,30 @@ export class IsEndDateAfterStartDateConstraint implements ValidatorConstraintInt
   }
 }
 
-export class CreateTripDto {
-  @IsNotEmpty()
+export class UpdateTripDto {
+  @IsOptional()
   @IsString()
   @MaxLength(100)
-  title: string;
+  title?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDate()
   @IsDateNotPast({ message: 'Start date must be today or a future date' })
   @Type(() => Date)
-  startDate: Date;
+  startDate?: Date;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDate()
   @IsFutureDate({ message: 'End date must be in the future' })
   @Validate(IsEndDateAfterStartDateConstraint)
   @Type(() => Date)
-  endDate: Date;
+  endDate?: Date;
 
   @IsOptional()
-  status?: string = 'Initiated';
+  @IsString()
+  status?: string;
 }

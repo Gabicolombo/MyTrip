@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { Status } from './enums/status.enum';
@@ -44,5 +45,16 @@ export class TripsService {
 
       return newTrip;
     });
+  }
+
+  async updateTripDetails(
+    tripId: string,
+    updateData: Partial<UpdateTripDto>,
+  ): Promise<Trips> {
+    const trip = await this.tripsRepository.findById(tripId);
+    if (!trip) {
+      throw new Error('Trip not found');
+    }
+    return this.tripsRepository.update(trip.id, updateData);
   }
 }
