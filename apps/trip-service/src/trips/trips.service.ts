@@ -7,6 +7,7 @@ import { UpdateTripDto } from './dto/update-trip.dto';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { Status } from './enums/status.enum';
+import { Role } from './enums/role.enum';
 
 @Injectable()
 export class TripsService {
@@ -47,6 +48,17 @@ export class TripsService {
     });
   }
 
+  async checkParticipantExists(
+    tripId: string,
+    userId: number,
+  ): Promise<TripParticipant | null> {
+    const participant = await this.tripsParticipantsRepository.findParticipant(
+      Number(tripId),
+      userId,
+    );
+    return participant;
+  }
+
   async updateTripDetails(
     tripId: string,
     updateData: Partial<UpdateTripDto>,
@@ -56,5 +68,29 @@ export class TripsService {
       throw new Error('Trip not found');
     }
     return this.tripsRepository.update(trip.id, updateData);
+  }
+
+  async addParticipant(tripId: string, userId: number, role: Role) {
+    const trip = await this.tripsRepository.findById(tripId);
+    if (!trip) {
+      throw new Error('Trip not found');
+    }
+
+    const participantExists =
+      await this.tripsParticipantsRepository.findParticipant(
+        Number(tripId),
+        userId,
+      );
+    if (participantExists) {
+      throw new Error('User is already a participant in this trip');
+    }
+
+    const participant = await this.tripsParticipantsRepository.addParticipant({
+      tripId: Number(tripId),
+      userId,
+      role,
+      joinedAt: new Date(),
+    });
+    return participant;
   }
 }

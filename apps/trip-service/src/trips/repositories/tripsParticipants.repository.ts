@@ -16,4 +16,13 @@ export class TripsParticipantsRepository {
   ): Promise<TripParticipant> {
     return this.tripsParticipantsRepo.save(tripParticipantDto);
   }
+
+  async findParticipant(
+    tripId: number,
+    userId: number,
+  ): Promise<TripParticipant | null> {
+    return this.tripsParticipantsRepo.findOne({
+      where: { tripId, userId },
+    });
+  }
 }
