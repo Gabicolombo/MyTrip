@@ -5,12 +5,15 @@ import {
   Request,
   Body,
   Patch,
+  NotFoundException,
+  UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { TripsService } from './trips.service';
 import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
-import { Role } from './enums/role.enum';
+import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
 
 @UseGuards(AuthGuard)
@@ -28,22 +31,27 @@ export class TripsController {
 
   @Post('add-participant')
   async addParticipant(
-    @Body() body: { tripId: string; role: Role; userId: string },
+    @Body() body: Partial<AddParticipantDto>,
     @CurrentUser() user: { id: number },
   ) {
-    if (user.id == null) {
-      throw new Error('Unauthorized');
+    if (!body.tripId) {
+      throw new NotFoundException('Trip ID is required');
     }
-    const userExist = await this.tripsService.checkParticipantExists(
+    if (!body.role) {
+      throw new ConflictException('Role is required');
+    }
+    const userExists = await this.tripsService.checkParticipantExists(
       body.tripId,
       user.id,
     );
-    if (!userExist) {
-      throw new Error("You're not a participant of this trip");
+    if (!userExists) {
+      throw new UnauthorizedException("You're not a participant of this trip");
     }
 
-    if (userExist.role === 'VIEWER') {
-      throw new Error('User does not have permission to add participants');
+    if (userExists.role === 'VIEWER') {
+      throw new UnauthorizedException(
+        'User does not have permission to add participants',
+      );
     }
 
     return await this.tripsService.addParticipant(
@@ -55,26 +63,27 @@ export class TripsController {
 
   @Patch('update-trip/:id')
   async updateTripDetails(
-    @Request() req: { params: { id: string } },
+    @Request() req: { params: { id: number } },
     @Body() updateData: UpdateTripDto,
     @CurrentUser() user: { id: number },
   ) {
-    if (user.id == null) {
-      throw new Error('Unauthorized');
-    }
     const userExist = await this.tripsService.checkParticipantExists(
       req.params.id,
       user.id,
     );
     if (!userExist) {
-      throw new Error('User is not a participant of this trip');
+      throw new NotFoundException('User is not a participant of this trip');
     }
 
-    // we need also check the role of the user
     if (userExist.role === 'VIEWER') {
-      throw new Error('User does not have permission to update the trip');
+      throw new UnauthorizedException(
+        'User does not have permission to update the trip',
+      );
     }
 
-    return await this.tripsService.updateTripDetails(req.params.id, updateData);
+    return await this.tripsService.updateTripDetails(
+      String(req.params.id),
+      updateData,
+    );
   }
 }

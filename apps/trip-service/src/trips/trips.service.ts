@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
@@ -20,7 +24,7 @@ export class TripsService {
   async createTrip(userId: number, tripData: CreateTripDto) {
     const trip = await this.tripsRepository.findByTitle(tripData.title);
     if (trip) {
-      throw new Error('Trip with this title already exists');
+      throw new ConflictException('Trip with this title already exists');
     }
 
     // Use transaction to ensure both operations succeed or fail together
@@ -49,11 +53,11 @@ export class TripsService {
   }
 
   async checkParticipantExists(
-    tripId: string,
+    tripId: number,
     userId: number,
   ): Promise<TripParticipant | null> {
     const participant = await this.tripsParticipantsRepository.findParticipant(
-      Number(tripId),
+      tripId,
       userId,
     );
     return participant;
@@ -65,24 +69,21 @@ export class TripsService {
   ): Promise<Trips> {
     const trip = await this.tripsRepository.findById(tripId);
     if (!trip) {
-      throw new Error('Trip not found');
+      throw new NotFoundException('Trip not found');
     }
     return this.tripsRepository.update(trip.id, updateData);
   }
 
-  async addParticipant(tripId: string, userId: number, role: Role) {
-    const trip = await this.tripsRepository.findById(tripId);
+  async addParticipant(tripId: number, userId: number, role: Role) {
+    const trip = await this.tripsRepository.findById(String(tripId));
     if (!trip) {
-      throw new Error('Trip not found');
+      throw new NotFoundException('Trip not found');
     }
 
     const participantExists =
-      await this.tripsParticipantsRepository.findParticipant(
-        Number(tripId),
-        userId,
-      );
+      await this.tripsParticipantsRepository.findParticipant(tripId, userId);
     if (participantExists) {
-      throw new Error('User is already a participant in this trip');
+      throw new ConflictException('User is already a participant in this trip');
     }
 
     const participant = await this.tripsParticipantsRepository.addParticipant({
