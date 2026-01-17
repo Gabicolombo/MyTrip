@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import { Role } from '../enums/role.enum';
 
 export class AddParticipantDto {
   @IsNotEmpty()
@@ -9,7 +10,8 @@ export class AddParticipantDto {
 
   @IsNotEmpty()
   @IsString()
-  role: 'OWNER' | 'EDITOR' | 'VIEWER';
+  @IsEnum(Role)
+  role: Role;
 
   @IsNotEmpty()
   joinedAt: Date;
