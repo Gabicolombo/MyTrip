@@ -10,6 +10,7 @@ import { TripParticipant } from './entities/trips-participants.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
 import { AuthModule } from 'apps/auth-service/src/auth/auth.module';
 import { UsersModule } from 'apps/auth-service/src/users/users.module';
+import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 
 @Module({
   imports: [
@@ -18,7 +19,12 @@ import { UsersModule } from 'apps/auth-service/src/users/users.module';
     AuthModule,
     UsersModule,
   ],
-  providers: [TripsService, TripsRepository, TripsParticipantsRepository],
+  providers: [
+    TripsService,
+    TripsRepository,
+    TripsParticipantsRepository,
+    TripsDestinationsRepository,
+  ],
   controllers: [TripsController],
 })
 export class TripsModule {}

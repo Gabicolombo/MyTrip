@@ -12,12 +12,15 @@ import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { Status } from './enums/status.enum';
 import { Role } from './enums/role.enum';
+import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
+import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 
 @Injectable()
 export class TripsService {
   constructor(
     private readonly tripsRepository: TripsRepository,
     private readonly tripsParticipantsRepository: TripsParticipantsRepository,
+    private readonly tripsDestinationsRepository: TripsDestinationsRepository,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -93,5 +96,43 @@ export class TripsService {
       joinedAt: new Date(),
     });
     return participant;
+  }
+
+  async addDestination(
+    tripDestinationDto: AddTripDestinationDto[],
+    userId: number,
+  ) {
+    // we need to check if the trip is valid, and if the user is a participant of the trip
+    const trip = await this.tripsRepository.findById(
+      String(tripDestinationDto[0].tripId),
+    );
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    const participantExists =
+      await this.tripsParticipantsRepository.findParticipant(
+        tripDestinationDto[0].tripId,
+        userId,
+      );
+    if (!participantExists) {
+      throw new NotFoundException('User is not a participant of this trip');
+    }
+
+    // we need to check also the data of the destination, it needs to be between the trip start and end date
+    for (const destination of tripDestinationDto) {
+      if (
+        destination.startDate < trip.startDate ||
+        destination.endDate > trip.endDate
+      ) {
+        throw new ConflictException(
+          'Destination dates must be within the trip start and end dates',
+        );
+      }
+    }
+
+    return await this.tripsDestinationsRepository.addDestination(
+      tripDestinationDto,
+    );
   }
 }

@@ -15,6 +15,7 @@ import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
+import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 
 @UseGuards(AuthGuard)
 @Controller('trips')
@@ -59,6 +60,14 @@ export class TripsController {
       Number(body.userId),
       body.role,
     );
+  }
+
+  @Post('add-destination')
+  create(
+    @Body() tripDestinationDto: AddTripDestinationDto[],
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.tripsService.addDestination(tripDestinationDto, req.user.id);
   }
 
   @Patch('update-trip/:id')
