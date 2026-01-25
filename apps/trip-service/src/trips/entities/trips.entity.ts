@@ -32,4 +32,10 @@ export class Trips {
 
   @OneToMany(() => TripParticipant, (participant) => participant.trip)
   participants: TripParticipant[];
+
+  @Column({ nullable: true })
+  imageUrl?: string;
+
+  @Column({ nullable: true })
+  imagePublicId?: string;
 }

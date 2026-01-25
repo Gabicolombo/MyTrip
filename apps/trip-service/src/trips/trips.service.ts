@@ -14,6 +14,12 @@ import { Status } from './enums/status.enum';
 import { Role } from './enums/role.enum';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
+import { UploadService } from '../upload/upload.service';
+
+export interface UploadImageResult {
+  imageUrl: string;
+  imagePublicId: string;
+}
 
 @Injectable()
 export class TripsService {
@@ -21,30 +27,51 @@ export class TripsService {
     private readonly tripsRepository: TripsRepository,
     private readonly tripsParticipantsRepository: TripsParticipantsRepository,
     private readonly tripsDestinationsRepository: TripsDestinationsRepository,
+    private readonly uploadService: UploadService,
     private readonly dataSource: DataSource,
   ) {}
 
-  async createTrip(userId: number, tripData: CreateTripDto) {
+  async createTrip(
+    userId: number,
+    tripData: CreateTripDto,
+    file: Express.Multer.File,
+  ) {
     const trip = await this.tripsRepository.findByTitle(tripData.title);
     if (trip) {
       throw new ConflictException('Trip with this title already exists');
     }
 
+    let imageUrl: string | null = null;
+    let imagePublicId: string | null = null;
+
+    if (file) {
+      const uploadResult: UploadImageResult = await this.uploadService.uploadTripImage(file);
+
+      imageUrl = uploadResult.imageUrl;
+      imagePublicId = uploadResult.imagePublicId;
+    }
+
     // Use transaction to ensure both operations succeed or fail together
     return await this.dataSource.transaction(async (manager) => {
+      const tripsRepo = manager.getRepository(Trips);
+      const participantsRepo = manager.getRepository(TripParticipant);
+
+      const tripEntity = tripsRepo.create();
       // Save the trip within the transaction
-      const tripEntity = manager.create(Trips, {
+      Object.assign(tripEntity, {
         title: tripData.title,
         description: tripData.description,
         startDate: tripData.startDate,
         endDate: tripData.endDate,
         userId,
         status: (tripData.status ?? Status.Initiated) as Status,
+        imageUrl,
+        imagePublicId,
       });
-      const newTrip = await manager.save(tripEntity);
-
       // Add the participant within the same transaction
-      await manager.save(TripParticipant, {
+      const newTrip = await tripsRepo.save(tripEntity);
+
+      await participantsRepo.save({
         tripId: newTrip.id,
         userId,
         role: 'OWNER',

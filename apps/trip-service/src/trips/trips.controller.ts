@@ -8,7 +8,10 @@ import {
   NotFoundException,
   UnauthorizedException,
   ConflictException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
 import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -23,11 +26,13 @@ export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Post('create-trip')
+  @UseInterceptors(FileInterceptor('file'))
   async createTrip(
     @Request() req: { user: { id: number } },
     @Body() trip: CreateTripDto,
+    @UploadedFile() file: Express.Multer.File,
   ) {
-    return await this.tripsService.createTrip(req.user.id, trip);
+    return await this.tripsService.createTrip(req.user.id, trip, file);
   }
 
   @Post('add-participant')
