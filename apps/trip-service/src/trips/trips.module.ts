@@ -4,7 +4,7 @@ import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
-import { DatabaseModule } from 'y/database';
+import { DatabaseModule } from 'y/database/database.module';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { TripDestination } from './entities/trips-destinations.entity';

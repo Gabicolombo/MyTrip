@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TripServiceController } from './trip-service.controller';
 import { TripServiceService } from './trip-service.service';
-import { DatabaseModule } from 'y/database';
+import { DatabaseModule } from 'y/database/database.module';
 import { TripsModule } from './trips/trips.module';
 import { UploadModule } from './upload/upload.module';
 import { ConfigModule } from '@nestjs/config';
