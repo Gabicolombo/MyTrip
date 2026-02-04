@@ -45,7 +45,8 @@ export class TripsService {
     let imagePublicId: string | null = null;
 
     if (file) {
-      const uploadResult: UploadImageResult = await this.uploadService.uploadTripImage(file);
+      const uploadResult: UploadImageResult =
+        await this.uploadService.uploadTripImage(file);
 
       imageUrl = uploadResult.imageUrl;
       imagePublicId = uploadResult.imagePublicId;
