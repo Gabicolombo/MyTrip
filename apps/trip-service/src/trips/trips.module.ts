@@ -8,17 +8,24 @@ import { DatabaseModule } from 'y/database/database.module';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
+import { VisaCheckEntity } from './entities/visa-check.entity';
 import { AuthModule } from 'apps/auth-service/src/auth/auth.module';
 import { UsersModule } from 'apps/auth-service/src/users/users.module';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import { UploadModule } from '../upload/upload.module';
+import { VisaRepository } from './repositories/visa.repository';
 
 @Module({
   imports: [
     DatabaseModule,
-    TypeOrmModule.forFeature([Trips, TripParticipant, TripDestination]),
+    TypeOrmModule.forFeature([
+      Trips,
+      TripParticipant,
+      TripDestination,
+      VisaCheckEntity,
+    ]),
     AuthModule,
     UsersModule,
     UploadModule,
@@ -32,6 +39,7 @@ import { UploadModule } from '../upload/upload.module';
     TripsRepository,
     TripsParticipantsRepository,
     TripsDestinationsRepository,
+    VisaRepository,
   ],
   controllers: [TripsController],
 })

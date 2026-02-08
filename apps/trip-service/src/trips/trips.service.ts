@@ -8,6 +8,7 @@ import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { VisaCheckDto } from './dto/visa-check.dto';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { Status } from './enums/status.enum';
@@ -15,6 +16,7 @@ import { Role } from './enums/role.enum';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 import { UploadService } from '../upload/upload.service';
+import { VisaRepository } from './repositories/visa.repository';
 
 export interface UploadImageResult {
   imageUrl: string;
@@ -28,6 +30,7 @@ export class TripsService {
     private readonly tripsParticipantsRepository: TripsParticipantsRepository,
     private readonly tripsDestinationsRepository: TripsDestinationsRepository,
     private readonly uploadService: UploadService,
+    private readonly visaRepository: VisaRepository,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -92,6 +95,10 @@ export class TripsService {
       userId,
     );
     return participant;
+  }
+
+  async visaCheck(input: VisaCheckDto) {
+    return await this.visaRepository.checkVisaRequirements(input);
   }
 
   async updateTripDetails(

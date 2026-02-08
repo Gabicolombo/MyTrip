@@ -16,6 +16,7 @@ import { TripsService } from './trips.service';
 import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { VisaCheckDto } from './dto/visa-check.dto';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
@@ -33,6 +34,11 @@ export class TripsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return await this.tripsService.createTrip(req.user.id, trip, file);
+  }
+
+  @Post('visa-check')
+  async checkVisaRequirements(@Body() input: VisaCheckDto) {
+    return await this.tripsService.visaCheck(input);
   }
 
   @Post('add-participant')
