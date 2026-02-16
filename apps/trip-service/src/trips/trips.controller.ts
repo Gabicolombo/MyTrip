@@ -88,10 +88,12 @@ export class TripsController {
   }
 
   @Patch('update-trip/:id')
+  @UseInterceptors(FileInterceptor('file'))
   async updateTripDetails(
     @Request() req: { params: { id: number } },
     @Body() updateData: UpdateTripDto,
     @CurrentUser() user: { id: number },
+    @UploadedFile() file: Express.Multer.File,
   ) {
     const userExist = await this.tripsService.checkParticipantExists(
       req.params.id,
@@ -110,6 +112,7 @@ export class TripsController {
     return await this.tripsService.updateTripDetails(
       String(req.params.id),
       updateData,
+      file,
     );
   }
 }

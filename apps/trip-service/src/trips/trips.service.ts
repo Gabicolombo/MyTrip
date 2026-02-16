@@ -107,11 +107,22 @@ export class TripsService {
   async updateTripDetails(
     tripId: string,
     updateData: Partial<UpdateTripDto>,
+    file: Express.Multer.File,
   ): Promise<Trips> {
     const trip = await this.tripsRepository.findById(tripId);
     if (!trip) {
       throw new NotFoundException('Trip not found');
     }
+    let imageUrl: string | null = null;
+    if (file) {
+      const uploadResult: UploadImageResult =
+        await this.uploadService.uploadTripImage(file);
+
+      imageUrl = uploadResult.imageUrl;
+    }
+
+    updateData.imageUrl = imageUrl ?? trip.imageUrl;
+
     return this.tripsRepository.update(trip.id, updateData);
   }
 

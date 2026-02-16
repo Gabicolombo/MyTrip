@@ -111,4 +111,8 @@ export class UpdateTripDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
