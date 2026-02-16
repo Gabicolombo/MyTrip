@@ -10,6 +10,7 @@ import {
   ConflictException,
   UseInterceptors,
   UploadedFile,
+  Get,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
@@ -25,6 +26,11 @@ import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 @Controller('trips')
 export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
+
+  @Get('my-trips')
+  async getMyTrips(@CurrentUser() user: { id: number }) {
+    return await this.tripsService.myTrips(user.id);
+  }
 
   @Post('create-trip')
   @UseInterceptors(FileInterceptor('file'))

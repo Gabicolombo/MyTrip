@@ -3,7 +3,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -32,6 +33,8 @@ export class TripsService {
     private readonly uploadService: UploadService,
     private readonly visaRepository: VisaRepository,
     private readonly dataSource: DataSource,
+    @InjectRepository(Trips)
+    private readonly tripsDetailsQuery: Repository<Trips>,
   ) {}
 
   async createTrip(
@@ -169,5 +172,19 @@ export class TripsService {
     return await this.tripsDestinationsRepository.addDestination(
       tripDestinationDto,
     );
+  }
+
+  async getTripDetails(tripId: number): Promise<Trips | null> {
+    return this.tripsDetailsQuery
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.destinations', 'destination')
+      .leftJoinAndSelect('trip.participants', 'participant')
+      .leftJoinAndSelect('participant.user', 'user')
+      .where('trip.id = :tripId', { tripId })
+      .getOne();
+  }
+
+  async myTrips(userId: number): Promise<Trips[]> {
+    return this.tripsRepository.findByUserId(String(userId));
   }
 }

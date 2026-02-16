@@ -1,0 +1,50 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Query {
+  tripDetails(id: Int!): TripDetailsType!
+}
+
+"""The role of a participant in a trip"""
+enum Role {
+  EDITOR
+  OWNER
+  VIEWER
+}
+
+type TripDestinationType {
+  city: String!
+  country: String!
+  endDate: DateTime!
+  startDate: DateTime!
+  tripId: Int!
+}
+
+type TripDetailsType {
+  description: String!
+  destinations: [TripDestinationType!]!
+  endDate: DateTime!
+  id: Int!
+  imageUrl: String
+  participants: [TripParticipantType!]!
+  startDate: DateTime!
+  title: String!
+}
+
+type TripParticipantType {
+  joinedAt: DateTime!
+  role: Role!
+  tripId: Int!
+  user: UserType!
+}
+
+type UserType {
+  name: String!
+  nationality: String!
+}

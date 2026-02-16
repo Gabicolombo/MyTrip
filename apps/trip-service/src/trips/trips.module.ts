@@ -16,7 +16,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import { UploadModule } from '../upload/upload.module';
 import { VisaRepository } from './repositories/visa.repository';
-
+import { TripsResolver } from './graphql/trips.resolver';
+import { User } from 'apps/auth-service/src/users/entities/user.entity';
 @Module({
   imports: [
     DatabaseModule,
@@ -25,6 +26,7 @@ import { VisaRepository } from './repositories/visa.repository';
       TripParticipant,
       TripDestination,
       VisaCheckEntity,
+      User,
     ]),
     AuthModule,
     UsersModule,
@@ -40,6 +42,7 @@ import { VisaRepository } from './repositories/visa.repository';
     TripsParticipantsRepository,
     TripsDestinationsRepository,
     VisaRepository,
+    TripsResolver,
   ],
   controllers: [TripsController],
 })

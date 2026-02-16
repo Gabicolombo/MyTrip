@@ -2,19 +2,19 @@ import { IsNotEmpty, IsDate } from 'class-validator';
 
 export class AddTripDestinationDto {
   @IsNotEmpty()
-  tripId: number;
+  tripId!: number;
 
   @IsNotEmpty()
-  city: string;
+  city!: string;
 
   @IsNotEmpty()
-  country: string;
-
-  @IsNotEmpty()
-  @IsDate()
-  startDate: Date;
+  country!: string;
 
   @IsNotEmpty()
   @IsDate()
-  endDate: Date;
+  startDate!: Date;
+
+  @IsNotEmpty()
+  @IsDate()
+  endDate!: Date;
 }

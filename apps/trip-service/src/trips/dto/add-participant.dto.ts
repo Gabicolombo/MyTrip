@@ -3,16 +3,16 @@ import { Role } from '../enums/role.enum';
 
 export class AddParticipantDto {
   @IsNotEmpty()
-  tripId: number;
+  tripId!: number;
 
   @IsNotEmpty()
-  userId: number;
+  userId!: number;
 
   @IsNotEmpty()
   @IsString()
   @IsEnum(Role)
-  role: Role;
+  role!: Role;
 
   @IsNotEmpty()
-  joinedAt: Date;
+  joinedAt!: Date;
 }
