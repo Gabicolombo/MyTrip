@@ -39,5 +39,28 @@
         "${workspaceFolder}/dist/**/*.js"
       ]
     }
+    ,
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Trip Service",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:trip-service:debug"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "restart": true,
+      "protocol": "inspector",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js"
+      ]
+    }
   ]
 }
