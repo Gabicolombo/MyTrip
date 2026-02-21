@@ -10,24 +10,24 @@ import { Trips } from './trips.entity';
 @Entity('trip_destinations')
 export class TripDestination {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @ManyToOne(() => Trips, (trip) => trip.destinations)
   @JoinColumn({ name: 'tripId' })
-  trip: Trips;
+  trip!: Trips;
 
   @Column({ type: 'varchar', length: 100 })
-  city: string;
+  city!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  country: string;
+  country!: string;
 
   @Column({ type: 'date' })
-  startDate: Date;
+  startDate!: Date;
 
   @Column({ type: 'date' })
-  endDate: Date;
+  endDate!: Date;
 
   @Column()
-  orderIndex: number;
+  orderIndex!: number;
 }
