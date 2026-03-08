@@ -15,7 +15,7 @@ export class ItineraryDto {
 
   @IsNotEmpty()
   @IsString()
-  tripDestinationId!: number;
+  tripDestinationId!: string;
 
   @IsNotEmpty()
   @IsDateString()
@@ -27,7 +27,7 @@ export class ItineraryDto {
 
   @IsNotEmpty()
   @IsEnum(Activity)
-  activity!: typeof Activity;
+  activity!: Activity;
 
   @IsOptional()
   @IsString()

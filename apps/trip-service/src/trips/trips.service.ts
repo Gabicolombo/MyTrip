@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -21,7 +22,6 @@ import { UploadService } from '../upload/upload.service';
 import { VisaRepository } from './repositories/visa.repository';
 import { checkUserPermission } from './common/check-user-permission';
 import { ItineraryRepository } from './repositories/itinerary.repository';
-import { Activity } from './enums/activity.enum';
 
 export interface UploadImageResult {
   imageUrl: string;
@@ -223,7 +223,7 @@ export class TripsService {
         trip.id,
       ))
     ) {
-      throw new NotFoundException(
+      throw new UnauthorizedException(
         'User does not have permission to add itinerary',
       );
     }
@@ -250,7 +250,7 @@ export class TripsService {
       tripDestination,
       day: itineraryDto.day,
       time: itineraryDto.time,
-      activity: itineraryDto.activity as unknown as Activity,
+      activity: itineraryDto.activity,
       notes: itineraryDto.notes,
       link: itineraryDto.link,
       latitude: itineraryDto.latitude,

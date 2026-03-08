@@ -72,6 +72,11 @@ export class UsersService {
   }
 
   async findOne(id: number) {
-    return this.usersRepository.findOne({ where: { id } });
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      return null;
+    }
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }

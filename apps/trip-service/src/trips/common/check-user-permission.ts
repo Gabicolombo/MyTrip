@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { Role } from '../enums/role.enum';
 import { TripsParticipantsRepository } from '../repositories/tripsParticipants.repository';
 
@@ -14,12 +13,12 @@ export const checkUserPermission = async (
     userId,
   );
   if (!participant) {
-    throw new NotFoundException('User is not a participant of this trip');
+    return false;
   }
 
   if ((participant.role as Role) === Role.VIEWER) {
-    return false; // User does not have permission to perform the action
+    return false;
   }
 
-  return true; // User has permission to perform the action
+  return true;
 };
