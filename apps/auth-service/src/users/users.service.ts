@@ -70,4 +70,8 @@ export class UsersService {
       throw new BadRequestException('Error removing user');
     }
   }
+
+  async findOne(id: number) {
+    return this.usersRepository.findOne({ where: { id } });
+  }
 }
