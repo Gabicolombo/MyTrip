@@ -9,6 +9,7 @@ import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
 import { VisaCheckEntity } from './entities/visa-check.entity';
+import { ItineraryEntity } from './entities/itinerary.entity';
 import { AuthModule } from 'apps/auth-service/src/auth/auth.module';
 import { UsersModule } from 'apps/auth-service/src/users/users.module';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
@@ -18,6 +19,7 @@ import { UploadModule } from '../upload/upload.module';
 import { VisaRepository } from './repositories/visa.repository';
 import { TripsResolver } from './graphql/trips.resolver';
 import { User } from 'apps/auth-service/src/users/entities/user.entity';
+import { ItineraryRepository } from './repositories/itinerary.repository';
 @Module({
   imports: [
     DatabaseModule,
@@ -25,6 +27,7 @@ import { User } from 'apps/auth-service/src/users/entities/user.entity';
       Trips,
       TripParticipant,
       TripDestination,
+      ItineraryEntity,
       VisaCheckEntity,
       User,
     ]),
@@ -41,6 +44,7 @@ import { User } from 'apps/auth-service/src/users/entities/user.entity';
     TripsRepository,
     TripsParticipantsRepository,
     TripsDestinationsRepository,
+    ItineraryRepository,
     VisaRepository,
     TripsResolver,
   ],

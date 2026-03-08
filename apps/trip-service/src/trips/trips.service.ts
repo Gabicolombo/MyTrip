@@ -10,6 +10,7 @@ import { TripsParticipantsRepository } from './repositories/tripsParticipants.re
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { VisaCheckDto } from './dto/visa-check.dto';
+import { ItineraryDto } from './dto/add-itinerary.dto';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { Status } from './enums/status.enum';
@@ -18,6 +19,9 @@ import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 import { UploadService } from '../upload/upload.service';
 import { VisaRepository } from './repositories/visa.repository';
+import { checkUserPermission } from './common/check-user-permission';
+import { ItineraryRepository } from './repositories/itinerary.repository';
+import { Activity } from './enums/activity.enum';
 
 export interface UploadImageResult {
   imageUrl: string;
@@ -30,6 +34,7 @@ export class TripsService {
     private readonly tripsRepository: TripsRepository,
     private readonly tripsParticipantsRepository: TripsParticipantsRepository,
     private readonly tripsDestinationsRepository: TripsDestinationsRepository,
+    private readonly itineraryRepository: ItineraryRepository,
     private readonly uploadService: UploadService,
     private readonly visaRepository: VisaRepository,
     private readonly dataSource: DataSource,
@@ -190,9 +195,67 @@ export class TripsService {
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.destinations', 'destination')
       .leftJoinAndSelect('trip.participants', 'participant')
-      .leftJoinAndSelect('participant.user', 'user')
       .where('trip.id = :tripId', { tripId })
       .getOne();
+  }
+
+  async addItinerary(itineraryDto: ItineraryDto, userId: number) {
+    const tripDestination = await this.tripsDestinationsRepository.findById(
+      String(itineraryDto.tripDestinationId),
+    );
+
+    if (!tripDestination) {
+      throw new NotFoundException('Trip destination not found');
+    }
+
+    const trip = await this.tripsRepository.findById(
+      String(tripDestination.trip.id),
+    );
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (
+      !(await checkUserPermission(
+        this.tripsParticipantsRepository,
+        userId,
+        trip.id,
+      ))
+    ) {
+      throw new NotFoundException(
+        'User does not have permission to add itinerary',
+      );
+    }
+
+    // we also need to check if the itinerary day is between the trip start and end date
+    if (itineraryDto.day < trip.startDate || itineraryDto.day > trip.endDate) {
+      throw new ConflictException(
+        'Itinerary day must be within the trip start and end dates',
+      );
+    }
+
+    // and also check if the itinerary day is between the destination start and end date
+    if (
+      itineraryDto.day < tripDestination.startDate ||
+      itineraryDto.day > tripDestination.endDate
+    ) {
+      throw new ConflictException(
+        'Itinerary day must be within the destination start and end dates',
+      );
+    }
+
+    return await this.itineraryRepository.create({
+      name: itineraryDto.name,
+      tripDestination,
+      day: itineraryDto.day,
+      time: itineraryDto.time,
+      activity: itineraryDto.activity as unknown as Activity,
+      notes: itineraryDto.notes,
+      link: itineraryDto.link,
+      latitude: itineraryDto.latitude,
+      longitude: itineraryDto.longitude,
+    });
   }
 
   async myTrips(userId: number): Promise<Trips[]> {
