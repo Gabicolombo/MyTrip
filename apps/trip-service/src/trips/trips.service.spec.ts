@@ -27,9 +27,14 @@ const makeTrip = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeTripDestination = (overrides = {}) => ({
+const makeTripDestination = (overrides = {}, tripOverrides = {}) => ({
   id: 'dest-1',
-  trip: { id: 'trip-1' },
+  trip: {
+    id: 'trip-1',
+    startDate: new Date('2025-07-01'),
+    endDate: new Date('2025-07-31'),
+    ...tripOverrides,
+  },
   startDate: new Date('2025-07-05'),
   endDate: new Date('2025-07-20'),
   ...overrides,
@@ -160,9 +165,8 @@ describe('TripsService - Itinerary', () => {
 
     it('should throw NotFoundException when trip does not exist', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(
-        makeTripDestination(),
+        makeTripDestination({ trip: null }),
       );
-      mockTripsRepository.findById.mockResolvedValue(null);
 
       return expect(service.addItinerary(validDto, userId)).rejects.toThrow(
         NotFoundException,
@@ -185,11 +189,9 @@ describe('TripsService - Itinerary', () => {
 
     it('should throw ConflictException when day is before trip startDate', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(
-        makeTripDestination(),
+        makeTripDestination({}, { startDate: new Date('2025-07-15') }),
       );
-      mockTripsRepository.findById.mockResolvedValue(
-        makeTrip({ startDate: new Date('2025-07-15') }),
-      );
+      mockItineraryRepository.create.mockResolvedValue({});
 
       return expect(service.addItinerary(validDto, userId)).rejects.toThrow(
         ConflictException,
@@ -198,12 +200,8 @@ describe('TripsService - Itinerary', () => {
 
     it('should throw ConflictException when day is after trip endDate', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(
-        makeTripDestination(),
+        makeTripDestination({}, { endDate: new Date('2025-07-05') }),
       );
-      mockTripsRepository.findById.mockResolvedValue(
-        makeTrip({ endDate: new Date('2025-07-05') }),
-      );
-
       return expect(service.addItinerary(validDto, userId)).rejects.toThrow(
         ConflictException,
       );
@@ -269,9 +267,8 @@ describe('TripsService - Itinerary', () => {
     it('should throw NotFoundException when trip does not exist', () => {
       mockItineraryRepository.findById.mockResolvedValue(makeItineraryEntity());
       mockTripsDestinationsRepository.findById.mockResolvedValue(
-        makeTripDestination(),
+        makeTripDestination({ trip: null }),
       );
-      mockTripsRepository.findById.mockResolvedValue(null);
 
       return expect(
         service.updateItinerary(validUpdateDto, userId),
@@ -296,10 +293,7 @@ describe('TripsService - Itinerary', () => {
     it('should throw ConflictException when day is outside trip date range', () => {
       mockItineraryRepository.findById.mockResolvedValue(makeItineraryEntity());
       mockTripsDestinationsRepository.findById.mockResolvedValue(
-        makeTripDestination(),
-      );
-      mockTripsRepository.findById.mockResolvedValue(
-        makeTrip({ endDate: new Date('2025-07-05') }),
+        makeTripDestination({ endDate: new Date('2025-07-05') }),
       );
 
       return expect(

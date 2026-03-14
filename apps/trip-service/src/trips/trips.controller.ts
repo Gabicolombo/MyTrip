@@ -136,4 +136,11 @@ export class TripsController {
       file,
     );
   }
+
+  // @Delete('delete-trip/:id')
+  // async deleteItinerary(
+  //   @Request() req: { params: { id: number } },
+  //   @CurrentUser() user: { id: number },
+  // ) {
+  // }
 }

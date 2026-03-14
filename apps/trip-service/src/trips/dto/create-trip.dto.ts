@@ -90,24 +90,24 @@ export class CreateTripDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)
-  title: string;
+  title!: string;
 
   @IsNotEmpty()
   @IsString()
-  description: string;
+  description!: string;
 
   @IsNotEmpty()
   @IsDate()
   @IsDateNotPast({ message: 'Start date must be today or a future date' })
   @Type(() => Date)
-  startDate: Date;
+  startDate!: Date;
 
   @IsNotEmpty()
   @IsDate()
   @IsFutureDate({ message: 'End date must be in the future' })
   @Validate(IsEndDateAfterStartDateConstraint)
   @Type(() => Date)
-  endDate: Date;
+  endDate!: Date;
 
   @IsOptional()
   status?: string = 'Initiated';

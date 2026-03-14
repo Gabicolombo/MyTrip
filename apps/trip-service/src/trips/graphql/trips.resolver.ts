@@ -28,7 +28,10 @@ export class TripsResolver {
     }
 
     const userIds = trip.participants.map((p) => p.userId);
-    const users = await this.userRepo.find({ where: { id: In(userIds) } });
+    const users = await this.userRepo.find({
+      where: { id: In(userIds) },
+      select: ['id', 'name', 'nationality'],
+    });
 
     const userMap = new Map(users.map((u) => [u.id, u]));
 

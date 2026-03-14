@@ -2,11 +2,12 @@ import {
   IsString,
   IsNotEmpty,
   IsNumber,
-  IsDateString,
   IsEnum,
   IsOptional,
+  IsDate,
 } from 'class-validator';
 import { Activity } from '../enums/activity.enum';
+import { Type } from 'class-transformer';
 
 export class ItineraryDto {
   @IsNotEmpty()
@@ -18,7 +19,8 @@ export class ItineraryDto {
   tripDestinationId!: string;
 
   @IsNotEmpty()
-  @IsDateString()
+  @IsDate()
+  @Type(() => Date)
   day!: Date;
 
   @IsNotEmpty()

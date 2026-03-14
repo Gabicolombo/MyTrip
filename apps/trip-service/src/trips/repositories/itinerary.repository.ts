@@ -35,5 +35,7 @@ export class ItineraryRepository {
     return this.findById(itineraryId);
   }
 
-  async delete() {}
+  async delete(itinerary: string): Promise<void> {
+    await this.itineraryRepo.delete({ id: itinerary });
+  }
 }

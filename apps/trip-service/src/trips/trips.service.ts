@@ -203,14 +203,18 @@ export class TripsService {
       .getOne();
   }
 
+  private normalizeDate(date: Date | string): number {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
   private async validateItinerary(
     tripDestination: TripDestination,
     itinerary: ItineraryEntity,
     userId: number,
   ) {
-    const trip = await this.tripsRepository.findById(
-      String(tripDestination.trip.id),
-    );
+    const trip = tripDestination.trip;
 
     if (!trip) {
       throw new NotFoundException('Trip not found');
@@ -224,22 +228,25 @@ export class TripsService {
       ))
     ) {
       throw new UnauthorizedException(
-        'User does not have permission to add itinerary',
+        'User does not have permission to manage itinerary',
       );
     }
 
+    const itineraryDay = this.normalizeDate(itinerary.day);
+    const tripStart = this.normalizeDate(trip.startDate);
+    const tripEnd = this.normalizeDate(trip.endDate);
+    const destStart = this.normalizeDate(tripDestination.startDate);
+    const destEnd = this.normalizeDate(tripDestination.endDate);
+
     // we also need to check if the itinerary day is between the trip start and end date
-    if (itinerary.day < trip.startDate || itinerary.day > trip.endDate) {
+    if (itineraryDay < tripStart || itineraryDay > tripEnd) {
       throw new ConflictException(
         'Itinerary day must be within the trip start and end dates',
       );
     }
 
     // and also check if the itinerary day is between the destination start and end date
-    if (
-      itinerary.day < tripDestination.startDate ||
-      itinerary.day > tripDestination.endDate
-    ) {
+    if (itineraryDay < destStart || itineraryDay > destEnd) {
       throw new ConflictException(
         'Itinerary day must be within the destination start and end dates',
       );
@@ -267,15 +274,7 @@ export class TripsService {
       longitude: itineraryDto.longitude,
     } as ItineraryEntity;
 
-    const isValid = await this.validateItinerary(
-      tripDestination,
-      itinerary,
-      userId,
-    );
-
-    if (!isValid) {
-      throw new ConflictException('Invalid itinerary data');
-    }
+    await this.validateItinerary(tripDestination, itinerary, userId);
 
     return await this.itineraryRepository.create({
       name: itineraryDto.name,
@@ -310,15 +309,12 @@ export class TripsService {
       throw new NotFoundException('Trip destination not found');
     }
 
-    const isValid = await this.validateItinerary(
-      tripDestination,
-      itinerary,
-      userId,
-    );
+    const effectiveItinerary: ItineraryEntity = {
+      ...itinerary,
+      ...itineraryUpdateDto,
+    };
 
-    if (!isValid) {
-      throw new ConflictException('Invalid itinerary data');
-    }
+    await this.validateItinerary(tripDestination, effectiveItinerary, userId);
 
     try {
       const itineraryUpdated = await this.itineraryRepository.update(
@@ -333,6 +329,18 @@ export class TripsService {
       );
     }
   }
+
+  // async deleteItinerary(itineraryId: string, userId: number) {
+  //   const itinerary = await this.itineraryRepository.findById(
+  //     String(itineraryId),
+  //   );
+  //   if (!itinerary) {
+  //     throw new NotFoundException('Itinerary not found');
+  //   }
+  //   try {
+  //     await this.itineraryRepository.delete(String(itineraryId));
+  //   }
+  // }
 
   async myTrips(userId: number): Promise<Trips[]> {
     return this.tripsRepository.findByUserId(String(userId));
