@@ -22,6 +22,7 @@ import { ItineraryDto } from './dto/add-itinerary.dto';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
+import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 
 @UseGuards(AuthGuard)
 @Controller('trips')
@@ -94,6 +95,17 @@ export class TripsController {
     @Request() req: { user: { id: number } },
   ) {
     return await this.tripsService.addItinerary(itineraryDto, req.user.id);
+  }
+
+  @Post('update-itinerary')
+  async updateItinerary(
+    @Body() itineraryUpdateDto: ItineraryUpdateDto,
+    @Request() req: { user: { id: number } },
+  ) {
+    return await this.tripsService.updateItinerary(
+      itineraryUpdateDto,
+      req.user.id,
+    );
   }
 
   @Patch('update-trip/:id')

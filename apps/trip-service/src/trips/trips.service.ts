@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -22,6 +23,9 @@ import { UploadService } from '../upload/upload.service';
 import { VisaRepository } from './repositories/visa.repository';
 import { checkUserPermission } from './common/check-user-permission';
 import { ItineraryRepository } from './repositories/itinerary.repository';
+import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
+import { ItineraryEntity } from './entities/itinerary.entity';
+import { TripDestination } from './entities/trips-destinations.entity';
 
 export interface UploadImageResult {
   imageUrl: string;
@@ -199,15 +203,11 @@ export class TripsService {
       .getOne();
   }
 
-  async addItinerary(itineraryDto: ItineraryDto, userId: number) {
-    const tripDestination = await this.tripsDestinationsRepository.findById(
-      String(itineraryDto.tripDestinationId),
-    );
-
-    if (!tripDestination) {
-      throw new NotFoundException('Trip destination not found');
-    }
-
+  private async validateItinerary(
+    tripDestination: TripDestination,
+    itinerary: ItineraryEntity,
+    userId: number,
+  ) {
     const trip = await this.tripsRepository.findById(
       String(tripDestination.trip.id),
     );
@@ -229,7 +229,7 @@ export class TripsService {
     }
 
     // we also need to check if the itinerary day is between the trip start and end date
-    if (itineraryDto.day < trip.startDate || itineraryDto.day > trip.endDate) {
+    if (itinerary.day < trip.startDate || itinerary.day > trip.endDate) {
       throw new ConflictException(
         'Itinerary day must be within the trip start and end dates',
       );
@@ -237,12 +237,44 @@ export class TripsService {
 
     // and also check if the itinerary day is between the destination start and end date
     if (
-      itineraryDto.day < tripDestination.startDate ||
-      itineraryDto.day > tripDestination.endDate
+      itinerary.day < tripDestination.startDate ||
+      itinerary.day > tripDestination.endDate
     ) {
       throw new ConflictException(
         'Itinerary day must be within the destination start and end dates',
       );
+    }
+
+    return true;
+  }
+
+  async addItinerary(itineraryDto: ItineraryDto, userId: number) {
+    const tripDestination = await this.tripsDestinationsRepository.findById(
+      String(itineraryDto.tripDestinationId),
+    );
+
+    if (!tripDestination) {
+      throw new NotFoundException('Trip destination not found');
+    }
+
+    const itinerary = {
+      day: itineraryDto.day,
+      time: itineraryDto.time,
+      activity: itineraryDto.activity,
+      notes: itineraryDto.notes,
+      link: itineraryDto.link,
+      latitude: itineraryDto.latitude,
+      longitude: itineraryDto.longitude,
+    } as ItineraryEntity;
+
+    const isValid = await this.validateItinerary(
+      tripDestination,
+      itinerary,
+      userId,
+    );
+
+    if (!isValid) {
+      throw new ConflictException('Invalid itinerary data');
     }
 
     return await this.itineraryRepository.create({
@@ -256,6 +288,50 @@ export class TripsService {
       latitude: itineraryDto.latitude,
       longitude: itineraryDto.longitude,
     });
+  }
+
+  async updateItinerary(
+    itineraryUpdateDto: ItineraryUpdateDto,
+    userId: number,
+  ) {
+    const itinerary = await this.itineraryRepository.findById(
+      String(itineraryUpdateDto.id),
+    );
+
+    if (!itinerary) {
+      throw new NotFoundException('Itinerary not found');
+    }
+
+    const tripDestination = await this.tripsDestinationsRepository.findById(
+      String(itinerary.tripDestination.id),
+    );
+
+    if (!tripDestination) {
+      throw new NotFoundException('Trip destination not found');
+    }
+
+    const isValid = await this.validateItinerary(
+      tripDestination,
+      itinerary,
+      userId,
+    );
+
+    if (!isValid) {
+      throw new ConflictException('Invalid itinerary data');
+    }
+
+    try {
+      const itineraryUpdated = await this.itineraryRepository.update(
+        itineraryUpdateDto,
+        itinerary.id,
+      );
+
+      return itineraryUpdated;
+    } catch (error: unknown) {
+      throw new InternalServerErrorException(
+        `Error updating itinerary: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   async myTrips(userId: number): Promise<Trips[]> {
