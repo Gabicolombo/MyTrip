@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Get,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
@@ -108,6 +109,14 @@ export class TripsController {
     );
   }
 
+  @Delete('delete-itinerary/:id')
+  async deleteItinerary(
+    @Request() req: { params: { id: string } },
+    @CurrentUser() user: { id: number },
+  ) {
+    return await this.tripsService.deleteItinerary(req.params.id, user.id);
+  }
+
   @Patch('update-trip/:id')
   @UseInterceptors(FileInterceptor('file'))
   async updateTripDetails(
@@ -136,11 +145,4 @@ export class TripsController {
       file,
     );
   }
-
-  // @Delete('delete-trip/:id')
-  // async deleteItinerary(
-  //   @Request() req: { params: { id: number } },
-  //   @CurrentUser() user: { id: number },
-  // ) {
-  // }
 }

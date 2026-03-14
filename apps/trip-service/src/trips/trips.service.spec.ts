@@ -74,6 +74,7 @@ const mockItineraryRepository = {
   create: jest.fn(),
   findById: jest.fn(),
   update: jest.fn(),
+  delete: jest.fn(),
 };
 
 const mockVisaRepository = {
@@ -82,6 +83,18 @@ const mockVisaRepository = {
 
 const mockUploadService = {
   uploadTripImage: jest.fn(),
+};
+
+const validDto: ItineraryDto = {
+  name: 'Visit Museum',
+  tripDestinationId: 'dest-1',
+  day: new Date('2025-07-10'),
+  time: '10:00',
+  activity: Activity.Museum,
+  notes: 'Buy tickets in advance',
+  link: 'https://museum.com',
+  latitude: -23.5505,
+  longitude: -46.6333,
 };
 
 describe('TripsService - Itinerary', () => {
@@ -121,18 +134,6 @@ describe('TripsService - Itinerary', () => {
   });
   describe('addItinerary', () => {
     const userId = 1;
-
-    const validDto: ItineraryDto = {
-      name: 'Visit Museum',
-      tripDestinationId: 'dest-1',
-      day: new Date('2025-07-10'),
-      time: '10:00',
-      activity: Activity.Museum,
-      notes: 'Buy tickets in advance',
-      link: 'https://museum.com',
-      latitude: -23.5505,
-      longitude: -46.6333,
-    };
 
     it('should create and return the itinerary when data is valid', async () => {
       const destination = makeTripDestination();
@@ -325,6 +326,56 @@ describe('TripsService - Itinerary', () => {
 
       return expect(
         service.updateItinerary(validUpdateDto, userId),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('deleteItinerary', () => {
+    const userId = 1;
+
+    const itinerary = makeItineraryEntity({
+      tripDestination: {
+        id: 'dest-1',
+        trip: { id: 'trip-1' },
+      },
+    });
+
+    it('should delete the itinerary when user has permission', async () => {
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      mockItineraryRepository.delete.mockResolvedValue(true);
+
+      const result = await service.deleteItinerary(itinerary.id, userId);
+
+      expect(mockItineraryRepository.delete).toHaveBeenCalledWith(itinerary.id);
+      expect(result).toBe(true);
+    });
+
+    it('should throw NotFoundException when itinerary does not exist', () => {
+      mockItineraryRepository.findById.mockResolvedValue(null);
+
+      return expect(service.deleteItinerary('itin-1', userId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw UnauthorizedException when user has no permission', () => {
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      jest
+        .spyOn(permissionHelper, 'checkUserPermission')
+        .mockResolvedValue(false);
+
+      return expect(
+        service.deleteItinerary(itinerary.id, userId),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+    it('should throw InternalServerErrorException when repository throws on delete', () => {
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      mockItineraryRepository.delete.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
+
+      return expect(
+        service.deleteItinerary(itinerary.id, userId),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });

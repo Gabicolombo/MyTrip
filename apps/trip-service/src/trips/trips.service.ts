@@ -330,17 +330,34 @@ export class TripsService {
     }
   }
 
-  // async deleteItinerary(itineraryId: string, userId: number) {
-  //   const itinerary = await this.itineraryRepository.findById(
-  //     String(itineraryId),
-  //   );
-  //   if (!itinerary) {
-  //     throw new NotFoundException('Itinerary not found');
-  //   }
-  //   try {
-  //     await this.itineraryRepository.delete(String(itineraryId));
-  //   }
-  // }
+  async deleteItinerary(itineraryId: string, userId: number) {
+    const itinerary = await this.itineraryRepository.findById(
+      String(itineraryId),
+    );
+    if (!itinerary) {
+      throw new NotFoundException('Itinerary not found');
+    }
+    // we need to get the user permission for the trip, not for the destination
+    if (
+      !(await checkUserPermission(
+        this.tripsParticipantsRepository,
+        userId,
+        itinerary.tripDestination.trip.id,
+      ))
+    ) {
+      throw new UnauthorizedException(
+        'User does not have permission to manage itinerary',
+      );
+    }
+    try {
+      await this.itineraryRepository.delete(String(itineraryId));
+      return true;
+    } catch (error: unknown) {
+      throw new InternalServerErrorException(
+        `Error deleting itinerary: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   async myTrips(userId: number): Promise<Trips[]> {
     return this.tripsRepository.findByUserId(String(userId));
