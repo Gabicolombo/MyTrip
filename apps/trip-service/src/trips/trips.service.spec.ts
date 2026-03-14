@@ -1,4 +1,3 @@
-/// <reference types="jest" />
 import {
   ConflictException,
   InternalServerErrorException,
@@ -188,7 +187,6 @@ describe('TripsService - Itinerary', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(
         makeTripDestination(),
       );
-      // Trip começa dia 15, itinerário é dia 10
       mockTripsRepository.findById.mockResolvedValue(
         makeTrip({ startDate: new Date('2025-07-15') }),
       );
@@ -296,7 +294,6 @@ describe('TripsService - Itinerary', () => {
     });
 
     it('should throw ConflictException when day is outside trip date range', () => {
-      // Itinerário dia 10, trip termina dia 05
       mockItineraryRepository.findById.mockResolvedValue(makeItineraryEntity());
       mockTripsDestinationsRepository.findById.mockResolvedValue(
         makeTripDestination(),
