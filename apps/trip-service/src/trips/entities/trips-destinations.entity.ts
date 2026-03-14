@@ -4,8 +4,10 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Trips } from './trips.entity';
+import { ItineraryEntity } from './itinerary.entity';
 
 @Entity('trip_destinations')
 export class TripDestination {
@@ -30,4 +32,9 @@ export class TripDestination {
 
   @Column()
   orderIndex!: number;
+
+  @OneToMany(() => ItineraryEntity, (itinerary) => itinerary.tripDestination, {
+    cascade: true,
+  })
+  itineraries!: ItineraryEntity[];
 }

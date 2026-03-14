@@ -4,10 +4,8 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
-  JoinColumn,
 } from 'typeorm';
 import { Trips } from './trips.entity';
-import { User } from 'apps/auth-service/src/users/entities/user.entity';
 
 @Entity('trip_participants')
 export class TripParticipant {
@@ -19,10 +17,6 @@ export class TripParticipant {
 
   @Column()
   tripId!: number;
-
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
-  user!: User;
 
   @Column()
   userId!: number;

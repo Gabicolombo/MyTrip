@@ -6,6 +6,7 @@ import {
   Request,
   Delete,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 
 interface RequestWithUser extends Request {
@@ -23,6 +24,12 @@ export class UsersController {
   @Post('/register')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Get('/me')
+  @UseGuards(AuthGuard)
+  getProfile(@Request() req: RequestWithUser) {
+    return this.usersService.findOne(+req.user.id);
   }
 
   @UseGuards(AuthGuard)

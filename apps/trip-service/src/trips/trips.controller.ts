@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Get,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
@@ -18,9 +19,11 @@ import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { VisaCheckDto } from './dto/visa-check.dto';
+import { ItineraryDto } from './dto/add-itinerary.dto';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
+import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 
 @UseGuards(AuthGuard)
 @Controller('trips')
@@ -85,6 +88,33 @@ export class TripsController {
     @Request() req: { user: { id: number } },
   ) {
     return this.tripsService.addDestination(tripDestinationDto, req.user.id);
+  }
+
+  @Post('add-itinerary')
+  async addItinerary(
+    @Body() itineraryDto: ItineraryDto,
+    @Request() req: { user: { id: number } },
+  ) {
+    return await this.tripsService.addItinerary(itineraryDto, req.user.id);
+  }
+
+  @Post('update-itinerary')
+  async updateItinerary(
+    @Body() itineraryUpdateDto: ItineraryUpdateDto,
+    @Request() req: { user: { id: number } },
+  ) {
+    return await this.tripsService.updateItinerary(
+      itineraryUpdateDto,
+      req.user.id,
+    );
+  }
+
+  @Delete('delete-itinerary/:id')
+  async deleteItinerary(
+    @Request() req: { params: { id: string } },
+    @CurrentUser() user: { id: number },
+  ) {
+    return await this.tripsService.deleteItinerary(req.params.id, user.id);
   }
 
   @Patch('update-trip/:id')

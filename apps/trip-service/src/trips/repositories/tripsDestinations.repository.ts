@@ -28,4 +28,11 @@ export class TripsDestinationsRepository {
       throw new InternalServerErrorException('Failed to save destinations');
     }
   }
+
+  async findById(id: string): Promise<TripDestination | null> {
+    return await this.tripsDestinationsRepo.findOne({
+      where: { id },
+      relations: ['trip'],
+    });
+  }
 }

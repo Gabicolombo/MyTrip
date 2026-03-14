@@ -70,4 +70,13 @@ export class UsersService {
       throw new BadRequestException('Error removing user');
     }
   }
+
+  async findOne(id: number) {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      return null;
+    }
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
 }

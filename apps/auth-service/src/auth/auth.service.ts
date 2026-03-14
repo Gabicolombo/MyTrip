@@ -12,6 +12,7 @@ export class AuthService {
 
   async login(loginUserDto: LoginUserDto) {
     const user = await this.usersService.login(loginUserDto);
+
     if (!user) {
       throw new BadRequestException('Invalid credentials');
     }
