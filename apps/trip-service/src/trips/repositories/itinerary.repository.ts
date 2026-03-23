@@ -21,6 +21,18 @@ export class ItineraryRepository {
     return itinerary;
   }
 
+  async getByTripDestinationId(
+    tripDestinationId: string,
+  ): Promise<ItineraryEntity[]> {
+    const itineraries = await this.dataSource
+      .getRepository(ItineraryEntity)
+      .createQueryBuilder('itinerary')
+      .innerJoinAndSelect('itinerary.tripDestination', 'tripDestination')
+      .where('tripDestination.id = :id', { id: tripDestinationId })
+      .getMany();
+    return itineraries;
+  }
+
   async create(
     itineraryData: Partial<ItineraryEntity>,
   ): Promise<ItineraryEntity> {

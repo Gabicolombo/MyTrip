@@ -362,4 +362,16 @@ export class TripsService {
   async myTrips(userId: number): Promise<Trips[]> {
     return this.tripsRepository.findByUserId(String(userId));
   }
+
+  async getItinerary(tripDestinationId: string): Promise<ItineraryEntity[]> {
+    try {
+      return await this.itineraryRepository.getByTripDestinationId(
+        tripDestinationId,
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `Error fetching itinerary: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 }

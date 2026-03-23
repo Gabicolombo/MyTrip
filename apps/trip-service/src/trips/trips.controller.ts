@@ -35,6 +35,13 @@ export class TripsController {
     return await this.tripsService.myTrips(user.id);
   }
 
+  @Get('itinerary/:tripDestinationId')
+  async getItinerary(
+    @Request() req: { params: { tripDestinationId: string } },
+  ) {
+    return await this.tripsService.getItinerary(req.params.tripDestinationId);
+  }
+
   @Post('create-trip')
   @UseInterceptors(FileInterceptor('file'))
   async createTrip(
