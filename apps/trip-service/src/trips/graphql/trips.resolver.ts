@@ -22,7 +22,6 @@ export class TripsResolver {
     @Args('id', { type: () => Int }) id: number,
   ): Promise<TripDetailsType> {
     const trip = await this.tripsService.getTripDetails(id);
-
     if (!trip) {
       throw new Error('Trip not found');
     }
@@ -40,8 +39,10 @@ export class TripsResolver {
       startDate: new Date(trip.startDate),
       endDate: new Date(trip.endDate),
       destinations: trip.destinations.map((destination) => ({
-        ...destination,
+        id: destination.id,
         tripId: trip.id,
+        city: destination.city,
+        country: destination.country,
         startDate: new Date(destination.startDate),
         endDate: new Date(destination.endDate),
       })),

@@ -5,33 +5,33 @@ import { TripParticipant } from './trips-participants.entity';
 @Entity()
 export class Trips {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ type: 'varchar', length: 100, unique: true })
-  title: string;
+  title!: string;
 
   @Column({
     type: 'enum',
     enum: ['Initiated', 'Planned', 'Ongoing', 'Completed', 'Cancelled'],
   })
-  status: 'Initiated' | 'Planned' | 'Ongoing' | 'Completed' | 'Cancelled';
+  status!: 'Initiated' | 'Planned' | 'Ongoing' | 'Completed' | 'Cancelled';
 
   @Column({ type: 'text' })
-  description: string;
+  description!: string;
 
   @Column({ type: 'date' })
-  startDate: Date;
+  startDate!: Date;
 
   @Column({ type: 'date' })
-  endDate: Date;
+  endDate!: Date;
 
   @OneToMany(() => TripDestination, (destination) => destination.trip, {
     cascade: true,
   })
-  destinations: TripDestination[];
+  destinations!: TripDestination[];
 
   @OneToMany(() => TripParticipant, (participant) => participant.trip)
-  participants: TripParticipant[];
+  participants!: TripParticipant[];
 
   @Column({ nullable: true })
   imageUrl?: string;

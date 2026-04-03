@@ -7,6 +7,9 @@ export class TripDestinationType {
   @Field()
   city!: string;
 
+  @Field(() => String)
+  id!: string;
+
   @Field()
   country!: string;
 
