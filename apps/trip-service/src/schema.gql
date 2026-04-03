@@ -22,6 +22,7 @@ type TripDestinationType {
   city: String!
   country: String!
   endDate: DateTime!
+  id: String!
   startDate: DateTime!
   tripId: Int!
 }
