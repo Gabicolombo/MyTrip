@@ -29,6 +29,8 @@ export class ItineraryRepository {
       .createQueryBuilder('itinerary')
       .innerJoinAndSelect('itinerary.tripDestination', 'tripDestination')
       .where('tripDestination.id = :id', { id: tripDestinationId })
+      .orderBy('itinerary.day', 'ASC')
+      .addOrderBy('itinerary.time', 'ASC')
       .getMany();
     return itineraries;
   }

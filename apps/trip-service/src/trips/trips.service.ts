@@ -198,6 +198,7 @@ export class TripsService {
     return this.tripsDetailsQuery
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.destinations', 'destination')
+      .addSelect('destination.tripId')
       .leftJoinAndSelect('trip.participants', 'participant')
       .where('trip.id = :tripId', { tripId })
       .getOne();
