@@ -21,7 +21,7 @@ export class ItineraryEntity {
   tripDestination!: TripDestination;
 
   @Column({ type: 'date' })
-  day!: Date;
+  day!: string;
 
   @Column({ type: 'time' })
   time!: string;

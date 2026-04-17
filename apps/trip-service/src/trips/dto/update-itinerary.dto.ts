@@ -24,7 +24,7 @@ export class ItineraryUpdateDto {
 
   @IsOptional()
   @IsDateString()
-  day?: Date;
+  day?: string;
 
   @IsOptional()
   @IsEnum(Activity)
