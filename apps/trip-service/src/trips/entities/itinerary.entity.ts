@@ -20,6 +20,9 @@ export class ItineraryEntity {
   @JoinColumn({ name: 'tripDestinationId' })
   tripDestination!: TripDestination;
 
+  @Column({ type: 'uuid' })
+  tripDestinationId!: string;
+
   @Column({ type: 'date' })
   day!: string;
 

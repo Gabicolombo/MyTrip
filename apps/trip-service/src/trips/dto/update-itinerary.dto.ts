@@ -12,7 +12,7 @@ import { Activity } from '../enums/activity.enum';
 export class ItineraryUpdateDto {
   @IsNotEmpty()
   @IsString()
-  id!: string;
+  tripDestinationId!: string;
 
   @IsOptional()
   @IsString()
