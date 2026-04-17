@@ -105,14 +105,16 @@ export class TripsController {
     return await this.tripsService.addItinerary(itineraryDto, req.user.id);
   }
 
-  @Post('update-itinerary')
+  @Patch('update-itinerary/:id')
   async updateItinerary(
+    @Request() req: { params: { id: number } },
     @Body() itineraryUpdateDto: ItineraryUpdateDto,
-    @Request() req: { user: { id: number } },
+    @CurrentUser() user: { id: number },
   ) {
     return await this.tripsService.updateItinerary(
+      req.params.id,
       itineraryUpdateDto,
-      req.user.id,
+      user.id,
     );
   }
 

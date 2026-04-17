@@ -291,11 +291,12 @@ export class TripsService {
   }
 
   async updateItinerary(
+    itineraryId: number,
     itineraryUpdateDto: ItineraryUpdateDto,
     userId: number,
   ) {
     const itinerary = await this.itineraryRepository.findById(
-      String(itineraryUpdateDto.id),
+      String(itineraryId),
     );
 
     if (!itinerary) {
