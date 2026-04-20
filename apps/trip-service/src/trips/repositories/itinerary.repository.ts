@@ -16,6 +16,7 @@ export class ItineraryRepository {
       .getRepository(ItineraryEntity)
       .createQueryBuilder('itinerary')
       .innerJoinAndSelect('itinerary.tripDestination', 'tripDestination')
+      .innerJoinAndSelect('tripDestination.trip', 'trip')
       .where('itinerary.id = :id', { id: itineraryId })
       .getOne();
     return itinerary;
@@ -28,6 +29,7 @@ export class ItineraryRepository {
       .getRepository(ItineraryEntity)
       .createQueryBuilder('itinerary')
       .innerJoinAndSelect('itinerary.tripDestination', 'tripDestination')
+      .innerJoinAndSelect('tripDestination.trip', 'trip')
       .where('tripDestination.id = :id', { id: tripDestinationId })
       .orderBy('itinerary.day', 'ASC')
       .addOrderBy('itinerary.time', 'ASC')
