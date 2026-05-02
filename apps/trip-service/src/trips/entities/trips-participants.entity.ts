@@ -12,7 +12,9 @@ export class TripParticipant {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Trips, (trips) => trips.participants)
+  @ManyToOne(() => Trips, (trips) => trips.participants, {
+    onDelete: 'CASCADE',
+  })
   trip!: Trips;
 
   @Column()
