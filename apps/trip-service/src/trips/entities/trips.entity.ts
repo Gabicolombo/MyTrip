@@ -30,7 +30,9 @@ export class Trips {
   })
   destinations!: TripDestination[];
 
-  @OneToMany(() => TripParticipant, (participant) => participant.trip)
+  @OneToMany(() => TripParticipant, (participant) => participant.trip, {
+    cascade: true,
+  })
   participants!: TripParticipant[];
 
   @Column({ nullable: true })
