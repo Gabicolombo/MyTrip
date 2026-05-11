@@ -361,8 +361,52 @@ export class TripsService {
     }
   }
 
+  async deleteTrip(tripId: number, userId: number) {
+    try {
+      if (
+        !(await checkUserPermission(
+          this.tripsParticipantsRepository,
+          userId,
+          tripId,
+        ))
+      ) {
+        throw new UnauthorizedException(
+          'User does not have permission to manage itinerary',
+        );
+      }
+
+      const trip = await this.tripsRepository.findById(String(tripId));
+      if (!trip) {
+        throw new NotFoundException('Trip not found');
+      }
+
+      await this.tripsRepository.delete(tripId);
+      return true;
+    } catch (error: unknown) {
+      throw new InternalServerErrorException(
+        `Error deleting trip: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async myTrips(userId: number): Promise<Trips[]> {
     return this.tripsRepository.findByUserId(String(userId));
+  }
+
+  async getItineraryDetails(itineraryId: string): Promise<ItineraryEntity> {
+    try {
+      const itinerary = await this.itineraryRepository.findById(
+        String(itineraryId),
+      );
+      if (!itinerary) {
+        throw new NotFoundException('Itinerary not found');
+      }
+      return itinerary;
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `Error fetching itinerary details: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async getItinerary(tripDestinationId: string): Promise<ItineraryEntity[]> {
