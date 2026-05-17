@@ -26,11 +26,21 @@ import { ItineraryRepository } from './repositories/itinerary.repository';
 import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 import { ItineraryEntity } from './entities/itinerary.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
-
+import { parseDateAsLocal } from './common/date';
 export interface UploadImageResult {
   imageUrl: string;
   imagePublicId: string;
 }
+
+type DestinationsDates = {
+  startDate: string;
+  endDate: string;
+};
+
+type TripsWithDates = {
+  startDate: string;
+  endDate: string;
+};
 
 @Injectable()
 export class TripsService {
@@ -113,6 +123,21 @@ export class TripsService {
     return await this.visaRepository.checkVisaRequirements(input);
   }
 
+  private validateTripDates(
+    trip: TripsWithDates,
+    destination: DestinationsDates,
+  ) {
+    const destStart = parseDateAsLocal(destination.startDate);
+    const destEnd = parseDateAsLocal(destination.endDate);
+    const tripStart = parseDateAsLocal(trip.startDate);
+    const tripEnd = parseDateAsLocal(trip.endDate);
+
+    if (destStart < tripStart || destEnd > tripEnd) {
+      return false;
+    }
+    return true;
+  }
+
   async updateTripDetails(
     tripId: string,
     updateData: Partial<UpdateTripDto>,
@@ -122,6 +147,7 @@ export class TripsService {
     if (!trip) {
       throw new NotFoundException('Trip not found');
     }
+
     let imageUrl: string | null = null;
     if (file) {
       const uploadResult: UploadImageResult =
@@ -132,7 +158,51 @@ export class TripsService {
 
     updateData.imageUrl = imageUrl ?? trip.imageUrl;
 
-    return this.tripsRepository.update(trip.id, updateData);
+    await this.dataSource.transaction(async (manager) => {
+      // update trip
+      await manager.getRepository(Trips).update(trip.id, {
+        title: updateData.title,
+        description: updateData.description,
+        startDate: updateData.startDate,
+        endDate: updateData.endDate,
+      });
+
+      if (updateData.destinations) {
+        const { destinations, ...payload } = updateData;
+
+        for (const dest of destinations) {
+          if (
+            !this.validateTripDates(
+              {
+                startDate: payload.startDate!,
+                endDate: payload.endDate!,
+              },
+              {
+                startDate: dest.startDate!,
+                endDate: dest.endDate!,
+              },
+            )
+          ) {
+            throw new ConflictException(
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              `Destination dates must be within trip dates (${trip.startDate} to ${trip.endDate})`,
+            );
+          }
+        }
+
+        await manager.delete(TripDestination, { trip: { id: trip.id } });
+        for (let i = 0; i < updateData.destinations.length; i++) {
+          const dest = updateData.destinations[i];
+          await manager.save(TripDestination, {
+            ...dest,
+            trip: trip,
+            orderIndex: i + 1,
+          });
+        }
+      }
+    });
+
+    return this.tripsRepository.findById(tripId) as Promise<Trips>;
   }
 
   async addParticipant(tripId: number, userId: number, role: Role) {
@@ -180,8 +250,16 @@ export class TripsService {
     // we need to check also the data of the destination, it needs to be between the trip start and end date
     for (const destination of tripDestinationDto) {
       if (
-        destination.startDate < trip.startDate ||
-        destination.endDate > trip.endDate
+        this.validateTripDates(
+          {
+            startDate: trip.startDate.toISOString(),
+            endDate: trip.endDate.toISOString(),
+          },
+          {
+            startDate: destination.startDate,
+            endDate: destination.endDate,
+          },
+        )
       ) {
         throw new ConflictException(
           'Destination dates must be within the trip start and end dates',
@@ -361,8 +439,52 @@ export class TripsService {
     }
   }
 
+  async deleteTrip(tripId: number, userId: number) {
+    try {
+      if (
+        !(await checkUserPermission(
+          this.tripsParticipantsRepository,
+          userId,
+          tripId,
+        ))
+      ) {
+        throw new UnauthorizedException(
+          'User does not have permission to manage itinerary',
+        );
+      }
+
+      const trip = await this.tripsRepository.findById(String(tripId));
+      if (!trip) {
+        throw new NotFoundException('Trip not found');
+      }
+
+      await this.tripsRepository.delete(tripId);
+      return true;
+    } catch (error: unknown) {
+      throw new InternalServerErrorException(
+        `Error deleting trip: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async myTrips(userId: number): Promise<Trips[]> {
     return this.tripsRepository.findByUserId(String(userId));
+  }
+
+  async getItineraryDetails(itineraryId: string): Promise<ItineraryEntity> {
+    try {
+      const itinerary = await this.itineraryRepository.findById(
+        String(itineraryId),
+      );
+      if (!itinerary) {
+        throw new NotFoundException('Itinerary not found');
+      }
+      return itinerary;
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `Error fetching itinerary details: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async getItinerary(tripDestinationId: string): Promise<ItineraryEntity[]> {

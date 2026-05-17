@@ -35,11 +35,26 @@ export class TripsController {
     return await this.tripsService.myTrips(user.id);
   }
 
+  @Delete('delete-trip/:id')
+  async deleteTrip(
+    @Request() req: { params: { id: string } },
+    @CurrentUser() user: { id: number },
+  ) {
+    return await this.tripsService.deleteTrip(Number(req.params.id), user.id);
+  }
+
   @Get('itinerary/:tripDestinationId')
   async getItinerary(
     @Request() req: { params: { tripDestinationId: string } },
   ) {
     return await this.tripsService.getItinerary(req.params.tripDestinationId);
+  }
+
+  @Get('itinerary-details/:itineraryId')
+  async getItineraryDetails(
+    @Request() req: { params: { itineraryId: string } },
+  ) {
+    return await this.tripsService.getItineraryDetails(req.params.itineraryId);
   }
 
   @Post('create-trip')
