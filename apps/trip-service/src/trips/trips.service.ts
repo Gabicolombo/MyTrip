@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, Not, In } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -138,9 +138,15 @@ export class TripsService {
     return true;
   }
 
+  private differenceInDays(newDate: string, endDate: string): number {
+    const newD = parseDateAsLocal(newDate);
+    const end = parseDateAsLocal(endDate);
+    return (end.getTime() - newD.getTime()) / (1000 * 60 * 60 * 24);
+  }
+
   async updateTripDetails(
     tripId: string,
-    updateData: Partial<UpdateTripDto>,
+    updateData: UpdateTripDto,
     file: Express.Multer.File,
   ): Promise<Trips> {
     const trip = await this.tripsRepository.findById(tripId);
@@ -159,46 +165,56 @@ export class TripsService {
     updateData.imageUrl = imageUrl ?? trip.imageUrl;
 
     await this.dataSource.transaction(async (manager) => {
-      // update trip
-      await manager.getRepository(Trips).update(trip.id, {
-        title: updateData.title,
-        description: updateData.description,
-        startDate: updateData.startDate,
-        endDate: updateData.endDate,
+      const destinationsRepo = manager.getRepository(TripDestination);
+
+      const incomingDestinations = updateData.destinations
+        ?.filter((d) => d.id)
+        .map((d) => d.id);
+
+      await destinationsRepo.delete({
+        trip: { id: Number(tripId) },
+        id: Not(In(incomingDestinations!)),
       });
 
       if (updateData.destinations) {
-        const { destinations, ...payload } = updateData;
-
-        for (const dest of destinations) {
-          if (
-            !this.validateTripDates(
+        for (const destination of updateData.destinations) {
+          if (destination.id) {
+            await destinationsRepo.update(
+              { id: destination.id },
               {
-                startDate: payload.startDate!,
-                endDate: payload.endDate!,
+                city: destination.city,
+                country: destination.country,
+                startDate: destination.startDate,
+                endDate: destination.endDate,
               },
-              {
-                startDate: dest.startDate!,
-                endDate: dest.endDate!,
-              },
-            )
-          ) {
-            throw new ConflictException(
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Destination dates must be within trip dates (${trip.startDate} to ${trip.endDate})`,
             );
+          } else {
+            await destinationsRepo.save({
+              trip: { id: Number(tripId) },
+              city: destination.city,
+              country: destination.country,
+              startDate: destination.startDate,
+              endDate: destination.endDate,
+            });
           }
         }
-
-        await manager.delete(TripDestination, { trip: { id: trip.id } });
-        for (let i = 0; i < updateData.destinations.length; i++) {
-          const dest = updateData.destinations[i];
-          await manager.save(TripDestination, {
-            ...dest,
-            trip: trip,
-            orderIndex: i + 1,
-          });
-        }
+        const startDate = updateData.destinations
+          .map((d) => d.startDate)
+          .sort()[0];
+        const endDate = updateData.destinations
+          .map((d) => d.endDate)
+          .sort()
+          .at(-1);
+        await manager.getRepository(Trips).update(
+          { id: Number(tripId) },
+          {
+            title: updateData.title ?? trip.title,
+            description: updateData.description ?? trip.description,
+            startDate: startDate ?? trip.startDate,
+            endDate: endDate ?? trip.endDate,
+            imageUrl: updateData.imageUrl ?? trip.imageUrl,
+          },
+        );
       }
     });
 

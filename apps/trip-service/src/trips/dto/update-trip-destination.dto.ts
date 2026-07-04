@@ -2,18 +2,17 @@ import { IsOptional, IsString, IsDateString } from 'class-validator';
 
 export class UpdateTripDestinationDto {
   @IsOptional()
+  id!: string;
+
   @IsString()
   city?: string;
 
-  @IsOptional()
   @IsString()
   country?: string;
 
-  @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @IsOptional()
   @IsDateString()
   endDate?: string;
 }
