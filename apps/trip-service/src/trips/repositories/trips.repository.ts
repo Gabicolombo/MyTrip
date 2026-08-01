@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Trips } from '../entities/trips.entity';
 import { UpdateTripDto } from '../dto/update-trip.dto';
+import { Status } from '../enums/status.enum';
 
 @Injectable()
 export class TripsRepository {
@@ -23,12 +24,30 @@ export class TripsRepository {
     });
   }
 
+  async delete(tripId: number): Promise<void> {
+    return this.tripsRepo
+      .createQueryBuilder('trips')
+      .where('trips.id = :id', { id: tripId })
+      .delete()
+      .execute()
+      .then(() => {});
+  }
+
   async findByUserId(userId: string): Promise<Trips[]> {
     return this.tripsRepo
       .createQueryBuilder('trip')
       .innerJoinAndSelect('trip.participants', 'participant')
       .leftJoinAndSelect('trip.destinations', 'destination')
       .where('participant.userId = :userId', { userId })
+      .orderBy(
+        `CASE 
+          WHEN trip.status = :completedStatus THEN 1
+          ELSE 0
+        END`,
+        'ASC',
+      )
+      .addOrderBy('trip.startDate', 'ASC')
+      .setParameter('completedStatus', Status.Completed)
       .getMany();
   }
 

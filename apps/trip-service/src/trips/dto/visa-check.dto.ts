@@ -2,8 +2,8 @@ import { IsNotEmpty } from 'class-validator';
 
 export class VisaCheckDto {
   @IsNotEmpty()
-  passport: string;
+  passport!: string;
 
   @IsNotEmpty()
-  destination: string;
+  destination!: string;
 }
