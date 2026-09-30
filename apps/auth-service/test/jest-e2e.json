@@ -1,16 +1,15 @@
 {
-  "moduleFileExtensions": [
-    "js",
-    "json",
-    "ts"
-  ],
-  "rootDir": ".",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../../..",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "roots": ["<rootDir>/apps/auth-service/test"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "^y/database(|/.*)$": "<rootDir>/../../../libs/database/src/$1"
+    "^apps/(.*)$": "<rootDir>/apps/$1",
+    "^y/database(|/.*)$": "<rootDir>/libs/database/src/$1",
+    "^y/crypto(|/.*)$": "<rootDir>/libs/crypto/src/$1"
   }
 }

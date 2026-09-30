@@ -8,7 +8,7 @@ import { DatabaseModule } from 'y/database/database.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['apps/auth-service/.env', '.env'],
     }),
     DatabaseModule,
     AuthModule,

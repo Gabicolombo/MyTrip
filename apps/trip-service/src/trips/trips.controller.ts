@@ -46,8 +46,12 @@ export class TripsController {
   @Get('itinerary/:tripDestinationId')
   async getItinerary(
     @Request() req: { params: { tripDestinationId: string } },
+    @CurrentUser() user: { id: number },
   ) {
-    return await this.tripsService.getItinerary(req.params.tripDestinationId);
+    return await this.tripsService.getItinerary(
+      user.id,
+      req.params.tripDestinationId,
+    );
   }
 
   @Get('itinerary-details/:itineraryId')

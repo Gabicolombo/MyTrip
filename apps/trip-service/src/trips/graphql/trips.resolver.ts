@@ -1,4 +1,4 @@
-import { Resolver, Query, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Args, Int, Context } from '@nestjs/graphql';
 import { TripDetailsType } from './types/trip-details.type';
 import { TripsService } from '../trips.service';
 import { Role } from '../enums/role.enum';
@@ -20,8 +20,12 @@ export class TripsResolver {
   @Query(() => TripDetailsType, { name: 'tripDetails' })
   async getTripDetails(
     @Args('id', { type: () => Int }) id: number,
+    @Context() context: { req: { user: { id: number } } },
   ): Promise<TripDetailsType> {
-    const trip = await this.tripsService.getTripDetails(id);
+    const trip = await this.tripsService.getTripDetails(
+      context.req.user.id,
+      id,
+    );
     if (!trip) {
       throw new Error('Trip not found');
     }

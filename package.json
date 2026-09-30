@@ -27,8 +27,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./apps/MyTrip/test/jest-e2e.json",
-    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js"
+    "test:e2e": "jest --config jest-endpoints.json --runInBand",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "test:endpoints": "jest --config jest-endpoints.json --runInBand",
+    "test:endpoints:types": "tsc -p tsconfig.endpoints.json"
   },
   "dependencies": {
     "@apollo/server": "^5.4.0",
