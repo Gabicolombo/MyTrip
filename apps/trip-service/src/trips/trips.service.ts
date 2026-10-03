@@ -4,13 +4,16 @@ import {
   ConflictException,
   UnauthorizedException,
   InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
+import { isDateString } from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, Not, In } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { UpdateTripDestinationDto } from './dto/update-trip-destination.dto';
 import { VisaCheckDto } from './dto/visa-check.dto';
 import { ItineraryDto } from './dto/add-itinerary.dto';
 import { Trips } from './entities/trips.entity';
@@ -38,6 +41,14 @@ type DestinationsDates = {
 };
 
 type TripsWithDates = {
+  startDate: string | Date;
+  endDate: string | Date;
+};
+
+type DestinationPeriod = {
+  id?: string;
+  city: string;
+  country: string;
   startDate: string | Date;
   endDate: string | Date;
 };
@@ -141,7 +152,7 @@ export class TripsService {
     return (end.getTime() - newD.getTime()) / (1000 * 60 * 60 * 24);
   }
 
-  async updateTripDetails(
+  async updateTrip(
     tripId: string,
     updateData: UpdateTripDto,
     file: Express.Multer.File,
@@ -161,62 +172,85 @@ export class TripsService {
 
     updateData.imageUrl = imageUrl ?? trip.imageUrl;
 
-    await this.dataSource.transaction(async (manager) => {
-      const destinationsRepo = manager.getRepository(TripDestination);
-
-      const incomingDestinations = updateData.destinations
-        ?.filter((d) => d.id)
-        .map((d) => d.id);
-
-      await destinationsRepo.delete({
-        trip: { id: Number(tripId) },
-        id: Not(In(incomingDestinations!)),
-      });
-
-      if (updateData.destinations) {
-        for (const destination of updateData.destinations) {
-          if (destination.id) {
-            await destinationsRepo.update(
-              { id: destination.id },
-              {
-                city: destination.city,
-                country: destination.country,
-                startDate: destination.startDate,
-                endDate: destination.endDate,
-              },
-            );
-          } else {
-            await destinationsRepo.save({
-              trip: { id: Number(tripId) },
-              city: destination.city,
-              country: destination.country,
-              startDate: destination.startDate,
-              endDate: destination.endDate,
-            });
-          }
-        }
-        const startDate = updateData.destinations
-          .map((d) => d.startDate)
-          .sort()[0];
-        const endDate = updateData.destinations
-          .map((d) => d.endDate)
-          .sort()
-          .at(-1);
-        await manager.getRepository(Trips).update(
-          { id: Number(tripId) },
-          {
-            title: updateData.title ?? trip.title,
-            description: updateData.description ?? trip.description,
-            startDate: startDate ?? trip.startDate,
-            endDate: endDate ?? trip.endDate,
-            imageUrl: updateData.imageUrl ?? trip.imageUrl,
-          },
-        );
-      }
-    });
-
-    return this.tripsRepository.findById(tripId) as Promise<Trips>;
+    return await this.tripsRepository.update(Number(tripId), updateData);
   }
+
+  // async updateTripDetails(
+  //   tripId: string,
+  //   updateData: UpdateTripDto,
+  //   file: Express.Multer.File,
+  // ): Promise<Trips> {
+  //   const trip = await this.tripsRepository.findById(tripId);
+  //   if (!trip) {
+  //     throw new NotFoundException('Trip not found');
+  //   }
+
+  //   let imageUrl: string | null = null;
+  //   if (file) {
+  //     const uploadResult: UploadImageResult =
+  //       await this.uploadService.uploadTripImage(file);
+
+  //     imageUrl = uploadResult.imageUrl;
+  //   }
+
+  //   updateData.imageUrl = imageUrl ?? trip.imageUrl;
+
+  //   await this.dataSource.transaction(async (manager) => {
+  //     const destinationsRepo = manager.getRepository(TripDestination);
+
+  //     const incomingDestinations = updateData.destinations
+  //       ?.filter((d) => d.id)
+  //       .map((d) => d.id);
+
+  //     await destinationsRepo.delete({
+  //       trip: { id: Number(tripId) },
+  //       id: Not(In(incomingDestinations!)),
+  //     });
+
+  //     if (updateData.destinations) {
+  //       for (const destination of updateData.destinations) {
+  //         if (destination.id) {
+  //           await destinationsRepo.update(
+  //             { id: destination.id },
+  //             {
+  //               city: destination.city,
+  //               country: destination.country,
+  //               startDate: destination.startDate,
+  //               endDate: destination.endDate,
+  //             },
+  //           );
+  //         } else {
+  //           await destinationsRepo.save({
+  //             trip: { id: Number(tripId) },
+  //             city: destination.city,
+  //             country: destination.country,
+  //             startDate: destination.startDate,
+  //             endDate: destination.endDate,
+  //           });
+  //         }
+  //       }
+  //       const startDate = updateData.destinations
+  //         .map((d) => d.startDate)
+  //         .sort()[0];
+  //       const endDate = updateData.destinations
+  //         .map((d) => d.endDate)
+  //         .sort()
+  //         .at(-1);
+  //       await manager.getRepository(Trips).update(
+  //         { id: Number(tripId) },
+  //         {
+  //           title: updateData.title ?? trip.title,
+  //           description: updateData.description ?? trip.description,
+  //           startDate: startDate ?? trip.startDate,
+  //           endDate: endDate ?? trip.endDate,
+  //           imageUrl: updateData.imageUrl ?? trip.imageUrl,
+  //         },
+  //       );
+  //     }
+  //   });
+
+  //   return this.tripsRepository.findById(tripId) as Promise<Trips>;
+  // }
 
   async addParticipant(tripId: number, userId: number, role: Role) {
     const trip = await this.tripsRepository.findById(String(tripId));
@@ -243,46 +277,208 @@ export class TripsService {
     tripDestinationDto: AddTripDestinationDto[],
     userId: number,
   ) {
+    if (tripDestinationDto.length === 0) {
+      throw new BadRequestException('At least one destination is required');
+    }
+    const tripId = tripDestinationDto[0].tripId;
+    if (
+      tripDestinationDto.some((destination) => destination.tripId !== tripId)
+    ) {
+      throw new BadRequestException(
+        'All destinations must belong to the same trip',
+      );
+    }
     // we need to check if the trip is valid, and if the user is a participant of the trip
-    const trip = await this.tripsRepository.findById(
-      String(tripDestinationDto[0].tripId),
-    );
+    const trip = await this.tripsRepository.findById(String(tripId));
     if (!trip) {
       throw new NotFoundException('Trip not found');
     }
 
     const participantExists =
-      await this.tripsParticipantsRepository.findParticipant(
-        tripDestinationDto[0].tripId,
-        userId,
-      );
+      await this.tripsParticipantsRepository.findParticipant(tripId, userId);
     if (!participantExists) {
       throw new NotFoundException('User is not a participant of this trip');
     }
-
-    // we need to check also the data of the destination, it needs to be between the trip start and end date
+    if (participantExists.role === 'VIEWER') {
+      throw new UnauthorizedException(
+        'User does not have permission to add destinations',
+      );
+    }
+    let tripStartDate = this.destinationDate(trip.startDate);
+    let tripEndDate = this.destinationDate(trip.endDate);
     for (const destination of tripDestinationDto) {
-      if (
-        !this.validateTripDates(
-          {
-            startDate: trip.startDate,
-            endDate: trip.endDate,
-          },
-          {
-            startDate: destination.startDate,
-            endDate: destination.endDate,
-          },
-        )
-      ) {
+      const startDate = this.destinationDate(destination.startDate);
+      const endDate = this.destinationDate(destination.endDate);
+      if (startDate > endDate) {
         throw new ConflictException(
-          'Destination dates must be within the trip start and end dates',
+          'Destination start date must not be after end date',
         );
+      }
+
+      if (startDate < tripStartDate) {
+        tripStartDate = startDate;
+      }
+
+      if (endDate > tripEndDate) {
+        tripEndDate = endDate;
       }
     }
 
-    return await this.tripsDestinationsRepository.addDestination(
-      tripDestinationDto,
-    );
+    return this.dataSource.transaction(async (manager) => {
+      const destinationsRepo = manager.getRepository(TripDestination);
+      const destinations = await destinationsRepo.findBy({
+        trip: { id: tripId },
+      });
+      const cities = destinations.map((destination) => destination.city);
+      const newDestinations = tripDestinationDto.filter(
+        (d) => !cities.includes(d.city),
+      );
+      const scheduledDestinations: DestinationPeriod[] = [...destinations];
+      for (const destination of newDestinations) {
+        this.validateDestinationOverlap(destination, scheduledDestinations);
+        scheduledDestinations.push(destination);
+      }
+      const entities = newDestinations.map((destination) =>
+        destinationsRepo.create({
+          city: destination.city,
+          country: destination.country,
+          startDate: parseDateAsLocal(destination.startDate),
+          endDate: parseDateAsLocal(destination.endDate),
+          trip: { id: tripId },
+        }),
+      );
+
+      const savedDestinations = await destinationsRepo.save(entities);
+      await manager.getRepository(Trips).update(tripId, {
+        startDate: parseDateAsLocal(tripStartDate),
+        endDate: parseDateAsLocal(tripEndDate),
+      });
+      return savedDestinations;
+    });
+  }
+
+  private destinationDate(value: string | Date): string {
+    const date =
+      value instanceof Date ? value.toISOString().slice(0, 10) : value;
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !isDateString(date, { strict: true })
+    ) {
+      throw new BadRequestException('Dates must be valid YYYY-MM-DD values');
+    }
+    return date;
+  }
+
+  private validateDestinationOverlap(
+    destination: DestinationPeriod,
+    others: DestinationPeriod[],
+  ): void {
+    const startDate = this.destinationDate(destination.startDate);
+    const endDate = this.destinationDate(destination.endDate);
+    const conflictingDestinations = others.filter((other) => {
+      const otherStart = this.destinationDate(other.startDate);
+      const otherEnd = this.destinationDate(other.endDate);
+      return startDate < otherEnd && endDate > otherStart;
+    });
+    if (conflictingDestinations.length > 0) {
+      throw new ConflictException({
+        message: 'Destination dates overlap with other destinations',
+        conflictingDestinations: conflictingDestinations.map((other) => ({
+          id: other.id,
+          city: other.city,
+          country: other.country,
+          startDate: this.destinationDate(other.startDate),
+          endDate: this.destinationDate(other.endDate),
+        })),
+      });
+    }
+  }
+
+  async updateDestination(
+    destinationId: string,
+    updateData: UpdateTripDestinationDto,
+    userId: number,
+  ): Promise<TripDestination> {
+    return this.dataSource.transaction(async (manager) => {
+      const destinationsRepo = manager.getRepository(TripDestination);
+      const destination = await destinationsRepo.findOne({
+        where: { id: destinationId },
+        relations: ['trip', 'itineraries'],
+      });
+      if (!destination) {
+        throw new NotFoundException('Trip destination not found');
+      }
+      const trip = destination.trip;
+      if (
+        !(await checkUserPermission(
+          this.tripsParticipantsRepository,
+          userId,
+          trip.id,
+        ))
+      ) {
+        throw new UnauthorizedException(
+          'User does not have permission to update the destination',
+        );
+      }
+
+      const startDate = this.destinationDate(
+        updateData.startDate ?? destination.startDate,
+      );
+      const endDate = this.destinationDate(
+        updateData.endDate ?? destination.endDate,
+      );
+      if (startDate > endDate) {
+        throw new ConflictException(
+          'Destination start date must not be after end date',
+        );
+      }
+
+      const conflictingItineraries = destination.itineraries.filter(
+        (itinerary) => {
+          const day = this.destinationDate(itinerary.day);
+          return day < startDate || day > endDate;
+        },
+      );
+      if (conflictingItineraries.length > 0) {
+        throw new ConflictException({
+          message: 'Destination dates would exclude existing itineraries',
+          conflictingItineraries: conflictingItineraries.map((itinerary) => ({
+            id: itinerary.id,
+            name: itinerary.name,
+            day: this.destinationDate(itinerary.day),
+          })),
+        });
+      }
+
+      const destinations = await destinationsRepo.findBy({
+        trip: { id: trip.id },
+      });
+      this.validateDestinationOverlap(
+        { ...destination, startDate, endDate },
+        destinations.filter((other) => other.id !== destinationId),
+      );
+
+      const tripStart = this.destinationDate(trip.startDate);
+      const tripEnd = this.destinationDate(trip.endDate);
+      await destinationsRepo.update(destinationId, {
+        city: updateData.city ?? destination.city,
+        country: updateData.country ?? destination.country,
+        startDate: startDate as unknown as Date,
+        endDate: endDate as unknown as Date,
+      });
+      if (startDate < tripStart || endDate > tripEnd) {
+        await manager.getRepository(Trips).update(trip.id, {
+          startDate: (startDate < tripStart
+            ? startDate
+            : tripStart) as unknown as Date,
+          endDate: (endDate > tripEnd ? endDate : tripEnd) as unknown as Date,
+        });
+      }
+      return destinationsRepo.findOneOrFail({
+        where: { id: destinationId },
+        relations: ['trip', 'itineraries'],
+      });
+    });
   }
 
   async getTripDetails(userId: number, tripId: number): Promise<Trips | null> {
@@ -293,6 +489,8 @@ export class TripsService {
       .innerJoinAndSelect('trip.participants', 'participant')
       .where('trip.id = :tripId', { tripId })
       .andWhere('participant.userId = :userId', { userId })
+      .orderBy('destination.startDate', 'ASC')
+      .addOrderBy('destination.id', 'ASC')
       .getOne();
   }
 

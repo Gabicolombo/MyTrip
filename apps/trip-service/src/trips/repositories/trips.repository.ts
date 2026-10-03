@@ -15,6 +15,7 @@ export class TripsRepository {
     return this.tripsRepo.findOne({
       where: { id: Number(tripId) },
       relations: ['destinations', 'participants'],
+      order: { destinations: { startDate: 'ASC', id: 'ASC' } },
     });
   }
 
@@ -47,6 +48,9 @@ export class TripsRepository {
         'ASC',
       )
       .addOrderBy('trip.startDate', 'ASC')
+      .addOrderBy('trip.id', 'ASC')
+      .addOrderBy('destination.startDate', 'ASC')
+      .addOrderBy('destination.id', 'ASC')
       .setParameter('completedStatus', Status.Completed)
       .getMany();
   }

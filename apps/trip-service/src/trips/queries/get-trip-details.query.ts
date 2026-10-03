@@ -16,6 +16,8 @@ export class GetTripDetailsQuery {
       .leftJoinAndSelect('trip.destinations', 'destination')
       .leftJoinAndSelect('trip.participants', 'participant')
       .where('trip.id = :tripId', { tripId })
+      .orderBy('destination.startDate', 'ASC')
+      .addOrderBy('destination.id', 'ASC')
       .getOne();
   }
 }

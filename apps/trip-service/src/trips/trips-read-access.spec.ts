@@ -14,6 +14,8 @@ describe('Trip read access', () => {
     innerJoinAndSelect: jest.fn(),
     where: jest.fn(),
     andWhere: jest.fn(),
+    orderBy: jest.fn(),
+    addOrderBy: jest.fn(),
     getOne: jest.fn(),
   };
 
@@ -33,6 +35,8 @@ describe('Trip read access', () => {
     query.innerJoinAndSelect.mockReturnValue(query);
     query.where.mockReturnValue(query);
     query.andWhere.mockReturnValue(query);
+    query.orderBy.mockReturnValue(query);
+    query.addOrderBy.mockReturnValue(query);
     query.getOne.mockResolvedValue({ id: tripId });
   });
 
@@ -51,6 +55,8 @@ describe('Trip read access', () => {
       { userId },
     );
     expect(participants.findParticipant).not.toHaveBeenCalled();
+    expect(query.orderBy).toHaveBeenCalledWith('destination.startDate', 'ASC');
+    expect(query.addOrderBy).toHaveBeenCalledWith('destination.id', 'ASC');
   });
 
   it('returns null when the requested user is not a trip participant', async () => {

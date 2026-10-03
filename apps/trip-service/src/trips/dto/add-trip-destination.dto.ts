@@ -1,9 +1,5 @@
-import { IsNotEmpty, IsDateString, Validate } from 'class-validator';
-import {
-  IsDateNotPast,
-  IsFutureDate,
-  IsEndDateAfterStartDateConstraint,
-} from '../common/date';
+import { IsNotEmpty, IsDateString, Matches } from 'class-validator';
+import { IsDateNotPast, IsFutureDate } from '../common/date';
 
 export class AddTripDestinationDto {
   @IsNotEmpty()
@@ -16,15 +12,16 @@ export class AddTripDestinationDto {
   country!: string;
 
   @IsNotEmpty()
-  @IsDateString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
   @IsDateNotPast({
     message: 'Trip destination - Start date must be today or a future date',
   })
   startDate!: string;
 
   @IsNotEmpty()
-  @IsDateString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
   @IsFutureDate({ message: 'End date must be in the future' })
-  @Validate(IsEndDateAfterStartDateConstraint)
   endDate!: string;
 }
