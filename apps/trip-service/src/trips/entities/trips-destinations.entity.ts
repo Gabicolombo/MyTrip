@@ -30,9 +30,6 @@ export class TripDestination {
   @Column({ type: 'date' })
   endDate!: Date;
 
-  @Column()
-  orderIndex!: number;
-
   @OneToMany(() => ItineraryEntity, (itinerary) => itinerary.tripDestination, {
     cascade: true,
   })

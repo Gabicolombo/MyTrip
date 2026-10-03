@@ -14,7 +14,7 @@ describe('TripsController', () => {
     deleteTrip: jest.fn(),
     checkParticipantExists: jest.fn(),
     addParticipant: jest.fn(),
-    updateTripDetails: jest.fn(),
+    updateDestination: jest.fn(),
   };
 
   beforeEach(() => {
@@ -92,46 +92,104 @@ describe('TripsController', () => {
     });
   });
 
-  describe('updateTripDetails', () => {
-    const request = { params: { id: 12 } };
-    const update = { title: 'Updated trip' };
+  describe('updateDestination', () => {
+    const destinationId = '123e4567-e89b-12d3-a456-426614174000';
+    const updateData = { city: 'Updated Destination city' };
     const user = { id: 7 };
-    const file = { originalname: 'cover.png' } as Express.Multer.File;
 
-    it('rejects a nonparticipant', async () => {
-      tripsService.checkParticipantExists.mockResolvedValue(null);
-
-      await expect(
-        controller.updateTripDetails(request, update, user, file),
-      ).rejects.toThrow(NotFoundException);
-      expect(tripsService.updateTripDetails).not.toHaveBeenCalled();
-    });
-
-    it('rejects a viewer', async () => {
-      tripsService.checkParticipantExists.mockResolvedValue({
-        role: Role.VIEWER,
-      });
+    it('forwards the destination ID, update data, and user', async () => {
+      tripsService.updateDestination.mockResolvedValue({ id: destinationId });
 
       await expect(
-        controller.updateTripDetails(request, update, user, file),
-      ).rejects.toThrow(UnauthorizedException);
-      expect(tripsService.updateTripDetails).not.toHaveBeenCalled();
-    });
-
-    it('allows an editor and forwards the update', async () => {
-      tripsService.checkParticipantExists.mockResolvedValue({
-        role: Role.EDITOR,
-      });
-      tripsService.updateTripDetails.mockResolvedValue({ id: 12 });
-
-      await expect(
-        controller.updateTripDetails(request, update, user, file),
-      ).resolves.toEqual({ id: 12 });
-      expect(tripsService.updateTripDetails).toHaveBeenCalledWith(
-        '12',
-        update,
-        file,
+        controller.updateDestination(destinationId, updateData, user),
+      ).resolves.toEqual({ id: destinationId });
+      expect(tripsService.updateDestination).toHaveBeenCalledWith(
+        destinationId,
+        updateData,
+        user.id,
       );
+    });
+
+    it('throws an error if the destination does not exist', async () => {
+      tripsService.updateDestination.mockRejectedValue(
+        new NotFoundException('Trip destination not found'),
+      );
+
+      await expect(
+        controller.updateDestination(destinationId, updateData, user),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it.each([
+      ['extending the stay', { endDate: '2026-08-07' }],
+      ['shortening to the activity day', { endDate: '2026-08-04' }],
+      [
+        'keeping a single day',
+        { startDate: '2026-08-04', endDate: '2026-08-04' },
+      ],
+    ])('returns the saved destination when %s', async (_scenario, dates) => {
+      const savedDestination = {
+        id: destinationId,
+        city: 'Rome',
+        startDate: 'startDate' in dates ? dates.startDate : '2026-08-03',
+        endDate: dates.endDate,
+        itineraries: [{ id: 'itin-1', name: 'Colosseum', day: '2026-08-04' }],
+      };
+      tripsService.updateDestination.mockResolvedValue(savedDestination);
+
+      await expect(
+        controller.updateDestination(destinationId, dates, user),
+      ).resolves.toEqual(savedDestination);
+      expect(tripsService.updateDestination).toHaveBeenCalledWith(
+        destinationId,
+        dates,
+        user.id,
+      );
+    });
+
+    it('preserves the conflict response with the affected itineraries', async () => {
+      const conflict = new ConflictException({
+        message: 'Destination dates would exclude existing itineraries',
+        conflictingItineraries: [
+          { id: 'itin-1', name: 'Colosseum', day: '2026-08-04' },
+        ],
+      });
+      tripsService.updateDestination.mockRejectedValue(conflict);
+
+      await expect(
+        controller.updateDestination(
+          destinationId,
+          { endDate: '2026-08-03' },
+          user,
+        ),
+      ).rejects.toBe(conflict);
+      expect(conflict.getStatus()).toBe(409);
+      expect(conflict.getResponse()).toEqual({
+        message: 'Destination dates would exclude existing itineraries',
+        conflictingItineraries: [
+          { id: 'itin-1', name: 'Colosseum', day: '2026-08-04' },
+        ],
+      });
+    });
+
+    it('throws an error if the user is not authorized to update the destination', async () => {
+      tripsService.updateDestination.mockRejectedValue(
+        new UnauthorizedException(),
+      );
+
+      await expect(
+        controller.updateDestination(destinationId, updateData, user),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws an error if the update fails for any other reason', async () => {
+      tripsService.updateDestination.mockRejectedValue(
+        new Error('Unexpected error'),
+      );
+
+      await expect(
+        controller.updateDestination(destinationId, updateData, user),
+      ).rejects.toThrow('Unexpected error');
     });
   });
 });
