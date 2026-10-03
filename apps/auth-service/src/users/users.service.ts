@@ -53,6 +53,12 @@ export class UsersService {
       if (!user) {
         throw new BadRequestException('User not found');
       }
+      if (updateUserDto.password) {
+        const hashedPassword = await this.hashService.encrypt(
+          updateUserDto.password,
+        );
+        updateUserDto.password = hashedPassword;
+      }
       return this.usersRepository.update(id, updateUserDto);
     } catch {
       throw new BadRequestException('Error updating user');

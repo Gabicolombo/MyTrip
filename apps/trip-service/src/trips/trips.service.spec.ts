@@ -88,7 +88,7 @@ const mockUploadService = {
 const validDto: ItineraryDto = {
   name: 'Visit Museum',
   tripDestinationId: 'dest-1',
-  day: new Date('2025-07-10'),
+  day: '2025-07-10',
   time: '10:00',
   activity: Activity.Museum,
   notes: 'Buy tickets in advance',
@@ -223,7 +223,7 @@ describe('TripsService - Itinerary', () => {
     const userId = 1;
 
     const validUpdateDto: ItineraryUpdateDto = {
-      id: 'itin-1',
+      tripDestinationId: 'dest-1',
       name: 'Updated name',
       time: '14:00',
     };
@@ -239,7 +239,7 @@ describe('TripsService - Itinerary', () => {
       mockTripsRepository.findById.mockResolvedValue(trip);
       mockItineraryRepository.update.mockResolvedValue(updated);
 
-      const result = await service.updateItinerary(validUpdateDto, userId);
+      const result = await service.updateItinerary(1, validUpdateDto, userId);
 
       expect(mockItineraryRepository.update).toHaveBeenCalledWith(
         validUpdateDto,
@@ -252,7 +252,7 @@ describe('TripsService - Itinerary', () => {
       mockItineraryRepository.findById.mockResolvedValue(null);
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -261,7 +261,7 @@ describe('TripsService - Itinerary', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(null);
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -272,7 +272,7 @@ describe('TripsService - Itinerary', () => {
       );
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -287,7 +287,7 @@ describe('TripsService - Itinerary', () => {
         .mockResolvedValue(false);
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -298,7 +298,7 @@ describe('TripsService - Itinerary', () => {
       );
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -310,7 +310,7 @@ describe('TripsService - Itinerary', () => {
       mockTripsRepository.findById.mockResolvedValue(makeTrip());
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -325,7 +325,7 @@ describe('TripsService - Itinerary', () => {
       );
 
       return expect(
-        service.updateItinerary(validUpdateDto, userId),
+        service.updateItinerary(1, validUpdateDto, userId),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });

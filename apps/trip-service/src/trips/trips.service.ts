@@ -38,8 +38,8 @@ type DestinationsDates = {
 };
 
 type TripsWithDates = {
-  startDate: string;
-  endDate: string;
+  startDate: string | Date;
+  endDate: string | Date;
 };
 
 @Injectable()
@@ -132,10 +132,7 @@ export class TripsService {
     const tripStart = parseDateAsLocal(trip.startDate);
     const tripEnd = parseDateAsLocal(trip.endDate);
 
-    if (destStart < tripStart || destEnd > tripEnd) {
-      return false;
-    }
-    return true;
+    return destStart >= tripStart && destEnd <= tripEnd && destEnd > destStart;
   }
 
   private differenceInDays(newDate: string, endDate: string): number {
@@ -266,10 +263,10 @@ export class TripsService {
     // we need to check also the data of the destination, it needs to be between the trip start and end date
     for (const destination of tripDestinationDto) {
       if (
-        this.validateTripDates(
+        !this.validateTripDates(
           {
-            startDate: trip.startDate.toISOString(),
-            endDate: trip.endDate.toISOString(),
+            startDate: trip.startDate,
+            endDate: trip.endDate,
           },
           {
             startDate: destination.startDate,
@@ -288,13 +285,14 @@ export class TripsService {
     );
   }
 
-  async getTripDetails(tripId: number): Promise<Trips | null> {
+  async getTripDetails(userId: number, tripId: number): Promise<Trips | null> {
     return this.tripsDetailsQuery
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.destinations', 'destination')
       .addSelect('destination.tripId')
-      .leftJoinAndSelect('trip.participants', 'participant')
+      .innerJoinAndSelect('trip.participants', 'participant')
       .where('trip.id = :tripId', { tripId })
+      .andWhere('participant.userId = :userId', { userId })
       .getOne();
   }
 
@@ -510,8 +508,27 @@ export class TripsService {
     return itinerary;
   }
 
-  async getItinerary(tripDestinationId: string): Promise<ItineraryEntity[]> {
+  async getItinerary(
+    userId: number,
+    tripDestinationId: string,
+  ): Promise<ItineraryEntity[]> {
     try {
+      const tripDestination =
+        await this.itineraryRepository.getByTripDestinationId(
+          tripDestinationId,
+        );
+      const trip = tripDestination.map((td) => td.tripDestination.trip.id);
+      if (
+        !(await checkUserPermission(
+          this.tripsParticipantsRepository,
+          userId,
+          trip[0],
+        ))
+      ) {
+        throw new UnauthorizedException(
+          'User does not have permission to delete itinerary',
+        );
+      }
       return await this.itineraryRepository.getByTripDestinationId(
         tripDestinationId,
       );

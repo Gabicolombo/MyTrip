@@ -1,9 +1,9 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": "../../..",
+  "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
-  "roots": ["<rootDir>/apps/trip-service/test"],
+  "roots": ["<rootDir>/apps/"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

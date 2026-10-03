@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": [
+      "jest",
+      "node",
+      "multer"
+    ]
+  },
+  "include": [
+    "apps/*/test/*.e2e-spec.ts",
+    "apps/*/src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
