@@ -31,7 +31,7 @@ describe('Trip HTTP endpoints', () => {
     addItinerary: jest.fn(),
     updateItinerary: jest.fn(),
     deleteItinerary: jest.fn(),
-    updateTripDetails: jest.fn(),
+    updateTrip: jest.fn(),
   };
   const year = new Date().getFullYear() + 2;
   const startDate = `${year}-06-10`;
@@ -169,9 +169,9 @@ describe('Trip HTTP endpoints', () => {
     {
       method: 'patch',
       path: '/trips/update-trip/12',
-      handler: 'updateTripDetails',
-      body: { title: 'Updated', destinations: [] },
-      args: ['12', { title: 'Updated', destinations: [] }, undefined],
+      handler: 'updateTrip',
+      body: { title: 'Updated' },
+      args: ['12', expect.objectContaining({ title: 'Updated' }), undefined],
       result: { id: 12, title: 'Updated' },
       status: 200,
     },
@@ -260,7 +260,7 @@ describe('Trip HTTP endpoints', () => {
     ['post', '/trips/visa-check', 'visaCheck'],
     ['post', '/trips/add-itinerary', 'addItinerary'],
     ['patch', '/trips/update-itinerary/activity-id', 'updateItinerary'],
-    ['patch', '/trips/update-trip/12', 'updateTripDetails'],
+    ['patch', '/trips/update-trip/12', 'updateTrip'],
   ] as const)(
     'rejects an empty DTO on %s %s',
     async (method, path, handler) => {
@@ -287,12 +287,7 @@ describe('Trip HTTP endpoints', () => {
       { tripId: 12, userId: 8, role: 'VIEWER' },
       'addParticipant',
     ],
-    [
-      '/trips/update-trip/12',
-      'patch',
-      { title: 'Updated', destinations: [] },
-      'updateTripDetails',
-    ],
+    ['/trips/update-trip/12', 'patch', { title: 'Updated' }, 'updateTrip'],
   ] as const)(
     'blocks VIEWER in controller permissions for %s',
     async (path, method, body, handler) => {
@@ -319,9 +314,9 @@ describe('Trip HTTP endpoints', () => {
     await request(app.getHttpServer())
       .patch('/trips/update-trip/12')
       .set('Authorization', `Bearer ${token}`)
-      .send({ title: 'Updated', destinations: [] })
+      .send({ title: 'Updated' })
       .expect(404);
-    expect(service.updateTripDetails).not.toHaveBeenCalled();
+    expect(service.updateTrip).not.toHaveBeenCalled();
   });
   it.each([
     [{}, 404],
@@ -367,19 +362,21 @@ describe('Trip HTTP endpoints', () => {
       }),
     );
   });
-  it('parses multipart destinations when updating a trip', async () => {
-    service.updateTripDetails.mockResolvedValue({ id: 12 });
+  it('updates multipart trip metadata without forwarding destinations', async () => {
+    service.updateTrip.mockResolvedValue({ id: 12 });
     await request(app.getHttpServer())
       .patch('/trips/update-trip/12')
       .set('Authorization', `Bearer ${token}`)
       .field('title', 'Updated')
       .field('destinations', '[]')
       .expect(200);
-    expect(service.updateTripDetails).toHaveBeenCalledWith(
+    expect(service.updateTrip).toHaveBeenCalledWith(
       '12',
-      expect.objectContaining({ title: 'Updated', destinations: [] }),
+      expect.objectContaining({ title: 'Updated' }),
       undefined,
     );
+    const forwardedUpdate = (service.updateTrip.mock.calls[0] as unknown[])[1];
+    expect(forwardedUpdate).not.toHaveProperty('destinations');
   });
   it('rejects uploads larger than 5 MB', async () => {
     await request(app.getHttpServer())

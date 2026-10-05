@@ -11,8 +11,8 @@ import { AuthController } from '../src/auth/auth.controller';
 import { AuthService } from '../src/auth/auth.service';
 import { UsersController } from '../src/users/users.controller';
 import { UsersService } from '../src/users/users.service';
+import { EmailVerificationService } from '../src/users/email-verification.service';
 
-// Real routing, validation, AuthService and JWT; no database or real credentials.
 describe('Auth and users HTTP endpoints', () => {
   let app: INestApplication;
   let server: Server;
@@ -25,6 +25,7 @@ describe('Auth and users HTTP endpoints', () => {
     update: jest.fn(),
     remove: jest.fn(),
   };
+  const verification = { verify: jest.fn(), resend: jest.fn() };
   const profile = {
     id: 7,
     name: 'Test User',
@@ -46,7 +47,11 @@ describe('Auth and users HTTP endpoints', () => {
         }),
       ],
       controllers: [AuthController, UsersController],
-      providers: [AuthService, { provide: UsersService, useValue: users }],
+      providers: [
+        AuthService,
+        { provide: UsersService, useValue: users },
+        { provide: EmailVerificationService, useValue: verification },
+      ],
     }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -63,6 +68,32 @@ describe('Auth and users HTTP endpoints', () => {
   });
   afterAll(async () => {
     await app?.close();
+  });
+
+  it('rejects malformed verification tokens', async () => {
+    await request(server)
+      .post('/auth/verify-email')
+      .send({ token: 'invalid' })
+      .expect(400);
+    expect(verification.verify).not.toHaveBeenCalled();
+  });
+
+  it('confirms an email without requiring a login', async () => {
+    verification.verify.mockResolvedValue({
+      message: 'Email verified successfully',
+    });
+    await request(server)
+      .post('/auth/verify-email')
+      .send({ token: jwt.sign({ purpose: 'email-verification' }) })
+      .expect(200);
+    expect(verification.verify).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it('validates the email when requesting a new link', async () => {
+    await request(server)
+      .post('/auth/resend-verification')
+      .send({ email: 'invalid' })
+      .expect(400);
   });
   beforeEach(() => {
     jest.resetAllMocks();

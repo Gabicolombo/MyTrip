@@ -7,9 +7,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+import { EmailVerificationService } from './email-verification.service';
 
 describe('UsersService', () => {
   let service: UsersService;
+  const emailVerification = { send: jest.fn() };
   const usersRepository = {
     findOne: jest.fn(),
     create: jest.fn(),
@@ -27,6 +29,7 @@ describe('UsersService', () => {
     email: 'test@example.com',
     password: 'hashed-password',
     nationality: 'Brazil',
+    emailVerified: true,
   };
   const createUserDto: CreateUserDto = {
     name: user.name,
@@ -40,6 +43,7 @@ describe('UsersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
+        { provide: EmailVerificationService, useValue: emailVerification },
         { provide: getRepositoryToken(User), useValue: usersRepository },
         { provide: HashService, useValue: hashService },
       ],
@@ -59,7 +63,10 @@ describe('UsersService', () => {
       usersRepository.create.mockReturnValue(user);
       usersRepository.save.mockResolvedValue(user);
 
-      await expect(service.create(createUserDto)).resolves.toEqual(user);
+      await expect(service.create(createUserDto)).resolves.toEqual({
+        message: 'Account created. Check your email to verify your account.',
+      });
+      expect(emailVerification.send).toHaveBeenCalledWith(user);
       expect(usersRepository.findOne).toHaveBeenCalledWith({
         where: { email: createUserDto.email },
       });
@@ -111,6 +118,17 @@ describe('UsersService', () => {
       expect(hashService.decrypt).not.toHaveBeenCalled();
     });
 
+    it('blocks unverified users even with the correct password', async () => {
+      usersRepository.findOne.mockResolvedValue({
+        ...user,
+        emailVerified: false,
+      });
+      hashService.decrypt.mockResolvedValue(true);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Verify your email',
+      );
+    });
+
     it('rejects an incorrect password', async () => {
       usersRepository.findOne.mockResolvedValue(user);
       hashService.decrypt.mockResolvedValue(false);
@@ -122,6 +140,12 @@ describe('UsersService', () => {
   });
 
   describe('update', () => {
+    it('prevents changing an email without verification', async () => {
+      await expect(
+        service.update(user.id, { email: 'new@example.com' }),
+      ).rejects.toThrow('Email changes require');
+      expect(usersRepository.update).not.toHaveBeenCalled();
+    });
     it('hashes a new password before updating the user', async () => {
       const updateDto: UpdateUserDto = { password: 'newpass123' };
       usersRepository.findOne.mockResolvedValue(user);
@@ -187,6 +211,7 @@ describe('UsersService', () => {
         name: user.name,
         email: user.email,
         nationality: user.nationality,
+        emailVerified: true,
       });
       expect(usersRepository.findOne).toHaveBeenCalledWith({
         where: { id: user.id },
