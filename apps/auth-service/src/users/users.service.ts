@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
   // ForbiddenException,
 } from '@nestjs/common';
 import { EmailVerificationService } from './email-verification.service';
@@ -61,15 +62,13 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    if (updateUserDto.email !== undefined) {
-      throw new BadRequestException(
-        'Email changes require a separate verification flow',
-      );
-    }
     try {
       const user = await this.usersRepository.findOne({ where: { id } });
       if (!user) {
-        throw new BadRequestException('User not found');
+        throw new NotFoundException('User not found');
+      }
+      if (!user.emailVerified) {
+        throw new BadRequestException('Profile changes require verification');
       }
       if (updateUserDto.password) {
         const hashedPassword = await this.hashService.encrypt(
@@ -77,8 +76,22 @@ export class UsersService {
         );
         updateUserDto.password = hashedPassword;
       }
+
+      const emailChanged =
+        updateUserDto.email !== undefined && updateUserDto.email !== user.email;
+
+      if (emailChanged) {
+        updateUserDto.emailVerified = false;
+      }
+
       return this.usersRepository.update(id, updateUserDto);
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new BadRequestException('Error updating user');
     }
   }

@@ -2,6 +2,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
@@ -27,4 +28,8 @@ export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
   nationality: string;
+
+  @IsOptional()
+  @IsString()
+  emailVerified?: boolean;
 }

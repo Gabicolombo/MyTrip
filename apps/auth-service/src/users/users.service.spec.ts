@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { HashService } from '../../../../libs/crypto/src/hash.service';
@@ -140,12 +140,57 @@ describe('UsersService', () => {
   });
 
   describe('update', () => {
-    it('prevents changing an email without verification', async () => {
+    it.each([
+      { email: 'new@example.com' },
+      { name: 'Updated Name' },
+      { password: 'newpass123' },
+    ])(
+      'blocks profile changes for an unverified account: %j',
+      async (updateDto) => {
+        usersRepository.findOne.mockResolvedValue({
+          ...user,
+          emailVerified: false,
+        });
+
+        await expect(service.update(user.id, updateDto)).rejects.toThrow(
+          new BadRequestException('Profile changes require verification'),
+        );
+        expect(usersRepository.findOne).toHaveBeenCalledWith({
+          where: { id: user.id },
+        });
+        expect(usersRepository.update).not.toHaveBeenCalled();
+        expect(hashService.encrypt).not.toHaveBeenCalled();
+      },
+    );
+
+    it('marks a changed email as unverified in the same update', async () => {
+      usersRepository.findOne.mockResolvedValue(user);
+      usersRepository.update.mockResolvedValue({ affected: 1 });
+
       await expect(
         service.update(user.id, { email: 'new@example.com' }),
-      ).rejects.toThrow('Email changes require');
-      expect(usersRepository.update).not.toHaveBeenCalled();
+      ).resolves.toEqual({ affected: 1 });
+      expect(usersRepository.update).toHaveBeenCalledTimes(1);
+      expect(usersRepository.update).toHaveBeenCalledWith(user.id, {
+        email: 'new@example.com',
+        emailVerified: false,
+      });
+      expect(hashService.encrypt).not.toHaveBeenCalled();
     });
+
+    it('does not reset verification when the email is unchanged', async () => {
+      usersRepository.findOne.mockResolvedValue(user);
+      usersRepository.update.mockResolvedValue({ affected: 1 });
+
+      await expect(
+        service.update(user.id, { email: user.email }),
+      ).resolves.toEqual({ affected: 1 });
+      expect(usersRepository.update).toHaveBeenCalledWith(user.id, {
+        email: user.email,
+      });
+      expect(emailVerification.send).not.toHaveBeenCalled();
+    });
+
     it('hashes a new password before updating the user', async () => {
       const updateDto: UpdateUserDto = { password: 'newpass123' };
       usersRepository.findOne.mockResolvedValue(user);
@@ -177,7 +222,7 @@ describe('UsersService', () => {
       usersRepository.findOne.mockResolvedValue(null);
 
       await expect(service.update(user.id, {})).rejects.toThrow(
-        new BadRequestException('Error updating user'),
+        new NotFoundException('User not found'),
       );
       expect(usersRepository.update).not.toHaveBeenCalled();
     });
