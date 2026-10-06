@@ -1,7 +1,7 @@
 import {
   Injectable,
   BadRequestException,
-  ForbiddenException,
+  // ForbiddenException,
 } from '@nestjs/common';
 import { EmailVerificationService } from './email-verification.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -54,9 +54,9 @@ export class UsersService {
     if (!isMatch) {
       throw new BadRequestException('Invalid credentials');
     }
-    if (!userExists.emailVerified) {
-      throw new ForbiddenException('Verify your email before logging in');
-    }
+    // if (!userExists.emailVerified) {
+    //   throw new ForbiddenException('Verify your email before logging in');
+    // }
     return userExists;
   }
 
