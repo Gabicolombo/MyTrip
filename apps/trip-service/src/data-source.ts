@@ -6,6 +6,8 @@ dotenv.config({
   path: path.resolve(__dirname, '../.env'),
 });
 
+const sourceDirectory = __dirname.replace(/\\/g, '/');
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST,
@@ -13,9 +15,9 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-
-  entities: ['apps/trip-service/src/**/*.entity.ts'],
-  migrations: ['apps/trip-service/src/migrations/*.ts'],
+  ssl: true,
+  entities: [`${sourceDirectory}/**/*.entity.ts`],
+  migrations: [`${sourceDirectory}/migrations/*.ts`],
 
   synchronize: false,
 });
