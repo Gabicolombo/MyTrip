@@ -14,6 +14,9 @@ export class User {
   @Column({ type: 'varchar', length: 100 })
   password!: string;
 
+  @Column({ default: false })
+  emailVerified!: boolean;
+
   @Column({ type: 'varchar', length: 100 })
   nationality!: string;
 

@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { EmailVerificationService } from './email-verification.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -13,6 +18,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly hashService: HashService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -28,7 +34,11 @@ export class UsersService {
       ...createUserDto,
       password: hashedPassword,
     });
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+    await this.emailVerification.send(saved);
+    return {
+      message: 'Account created. Check your email to verify your account.',
+    };
   }
 
   async login(loginUserDto: LoginUserDto) {
@@ -44,10 +54,18 @@ export class UsersService {
     if (!isMatch) {
       throw new BadRequestException('Invalid credentials');
     }
+    if (!userExists.emailVerified) {
+      throw new ForbiddenException('Verify your email before logging in');
+    }
     return userExists;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.email !== undefined) {
+      throw new BadRequestException(
+        'Email changes require a separate verification flow',
+      );
+    }
     try {
       const user = await this.usersRepository.findOne({ where: { id } });
       if (!user) {
@@ -83,6 +101,7 @@ export class UsersService {
       return null;
     }
     const { password, ...userWithoutPassword } = user;
+    void password;
     return userWithoutPassword;
   }
 }

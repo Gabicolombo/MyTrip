@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { LoginUserDto } from '../users/dto/login-user.dto';
 import { AuthGuard } from './auth.guard';
 import { BadRequestException } from '@nestjs/common';
+import { EmailVerificationService } from '../users/email-verification.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -21,6 +22,10 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        {
+          provide: EmailVerificationService,
+          useValue: { verify: jest.fn(), resend: jest.fn() },
+        },
         {
           provide: AuthService,
           useValue: mockAuthService,

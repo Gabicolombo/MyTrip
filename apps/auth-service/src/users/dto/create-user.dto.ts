@@ -18,9 +18,9 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{6,}$/, {
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&_]{6,}$/, {
     message:
-      'Password must contain at least one letter and one number, and can include special characters @$!%*#?&',
+      'A senha deve ter pelo menos uma letra e um número. Caracteres especiais permitidos: @$!%*#?&_',
   })
   password: string;
 

@@ -1,18 +1,24 @@
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, Matches } from 'class-validator';
 
 export class UpdateTripDestinationDto {
   @IsOptional()
-  id!: string;
+  id?: string;
 
+  @IsOptional()
   @IsString()
   city?: string;
 
+  @IsOptional()
   @IsString()
   country?: string;
 
-  @IsDateString()
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
   startDate?: string;
 
-  @IsDateString()
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
   endDate?: string;
 }

@@ -86,7 +86,7 @@ describe('Known permission defects - expected failures until item 8 is fixed', (
         .expect(200, itinerary);
     },
   );
-  it.failing('BUG: VIEWER must not create destinations', async () => {
+  it('VIEWER must not create destinations', async () => {
     const res = await request(server)
       .post('/trips/add-destination')
       .set('Authorization', `Bearer ${token}`)
