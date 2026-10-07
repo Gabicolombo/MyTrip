@@ -7,5 +7,7 @@ export enum Activity {
   Tour = 'Tour',
   Park = 'Park',
   House = 'House',
+  Shopping = 'Shopping',
+  Bar = 'Bar',
   Other = 'Other',
 }
