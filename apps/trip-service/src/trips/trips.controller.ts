@@ -57,6 +57,17 @@ export class TripsController {
     );
   }
 
+  @Get('itinerary-by-trip/:tripId')
+  async getItineraryByTripId(
+    @Request() req: { params: { tripId: string } },
+    @CurrentUser() user: { id: number },
+  ) {
+    return await this.tripsService.getItineraryByTripId(
+      user.id,
+      req.params.tripId,
+    );
+  }
+
   @Get('itinerary-details/:itineraryId')
   async getItineraryDetails(
     @Request() req: { params: { itineraryId: string } },
@@ -166,35 +177,6 @@ export class TripsController {
   ) {
     return await this.tripsService.deleteItinerary(req.params.id, user.id);
   }
-
-  // @Patch('update-trip/:id')
-  // @UseInterceptors(FileInterceptor('file'))
-  // async updateTripDetails(
-  //   @Request() req: { params: { id: number } },
-  //   @Body() updateData: UpdateTripDto,
-  //   @CurrentUser() user: { id: number },
-  //   @UploadedFile() file: Express.Multer.File,
-  // ) {
-  //   const userExist = await this.tripsService.checkParticipantExists(
-  //     req.params.id,
-  //     user.id,
-  //   );
-  //   if (!userExist) {
-  //     throw new NotFoundException('User is not a participant of this trip');
-  //   }
-
-  //   if (userExist.role === 'VIEWER') {
-  //     throw new UnauthorizedException(
-  //       'User does not have permission to update the trip',
-  //     );
-  //   }
-
-  //   return await this.tripsService.updateTripDetails(
-  //     String(req.params.id),
-  //     updateData,
-  //     file,
-  //   );
-  // }
 
   @Patch('update-destination/:destinationId')
   async updateDestination(

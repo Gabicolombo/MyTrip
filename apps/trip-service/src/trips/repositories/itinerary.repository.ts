@@ -3,6 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ItineraryEntity } from '../entities/itinerary.entity';
 
+export type AmountByCurrency = {
+  currency: string;
+  amount: string;
+};
+
+export type AmountByActivity = AmountByCurrency & {
+  activity: string;
+};
+
 @Injectable()
 export class ItineraryRepository {
   constructor(
@@ -34,6 +43,40 @@ export class ItineraryRepository {
       .orderBy('itinerary.day', 'ASC')
       .addOrderBy('itinerary.time', 'ASC')
       .getMany();
+    return itineraries;
+  }
+
+  async totalAmountByCurrency(tripId: string): Promise<AmountByCurrency[]> {
+    const itineraries = await this.dataSource
+      .getRepository(ItineraryEntity)
+      .createQueryBuilder('itinerary')
+      .innerJoin('itinerary.tripDestination', 'tripDestination')
+      .innerJoin('tripDestination.trip', 'trip')
+      .select('itinerary.currency', 'currency')
+      .addSelect('SUM(itinerary.amount)', 'amount')
+      .where('trip.id = :id', { id: tripId })
+      .andWhere('itinerary.amount IS NOT NULL')
+      .andWhere('itinerary.currency IS NOT NULL')
+      .groupBy('itinerary.currency')
+      .getRawMany<AmountByCurrency>();
+    return itineraries;
+  }
+
+  async totalByCategory(tripId: string): Promise<AmountByActivity[]> {
+    const itineraries = await this.dataSource
+      .getRepository(ItineraryEntity)
+      .createQueryBuilder('itinerary')
+      .innerJoin('itinerary.tripDestination', 'tripDestination')
+      .innerJoin('tripDestination.trip', 'trip')
+      .select('itinerary.activity', 'activity')
+      .addSelect('itinerary.currency', 'currency')
+      .addSelect('SUM(itinerary.amount)', 'amount')
+      .where('trip.id = :id', { id: tripId })
+      .andWhere('itinerary.amount IS NOT NULL')
+      .andWhere('itinerary.currency IS NOT NULL')
+      .groupBy('itinerary.activity')
+      .addGroupBy('itinerary.currency')
+      .getRawMany<AmountByActivity>();
     return itineraries;
   }
 

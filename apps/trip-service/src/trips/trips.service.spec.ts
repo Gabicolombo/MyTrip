@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { validate } from 'class-validator';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TripsService } from './trips.service';
 import { ItineraryDto } from './dto/add-itinerary.dto';
@@ -450,6 +451,40 @@ describe('TripsService - Itinerary', () => {
       expect(result).toEqual(created);
     });
 
+    it('saves amount and currency together', async () => {
+      const destination = makeTripDestination();
+      const paidItinerary = {
+        ...validDto,
+        amount: '40.00',
+        currency: 'GBP',
+      };
+      mockTripsDestinationsRepository.findById.mockResolvedValue(destination);
+      mockItineraryRepository.create.mockResolvedValue(paidItinerary);
+
+      await service.addItinerary(paidItinerary, userId);
+
+      expect(mockItineraryRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: '40.00',
+          currency: 'GBP',
+        }),
+      );
+    });
+
+    it.each([
+      ['amount without currency', { amount: '40.00' }],
+      ['currency without amount', { currency: 'GBP' }],
+    ])('rejects %s', async (_scenario, cost) => {
+      mockTripsDestinationsRepository.findById.mockResolvedValue(
+        makeTripDestination(),
+      );
+
+      await expect(
+        service.addItinerary({ ...validDto, ...cost }, userId),
+      ).rejects.toThrow(ConflictException);
+      expect(mockItineraryRepository.create).not.toHaveBeenCalled();
+    });
+
     it('should throw NotFoundException when tripDestination does not exist', () => {
       mockTripsDestinationsRepository.findById.mockResolvedValue(null);
 
@@ -540,6 +575,102 @@ describe('TripsService - Itinerary', () => {
         itinerary.id,
       );
       expect(result).toEqual(updated);
+    });
+
+    it('updates amount and currency together', async () => {
+      const itinerary = makeItineraryEntity();
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      mockTripsDestinationsRepository.findById.mockResolvedValue(
+        makeTripDestination(),
+      );
+      mockItineraryRepository.update.mockResolvedValue({
+        ...itinerary,
+        amount: '40.00',
+        currency: 'GBP',
+      });
+      const update = {
+        ...validUpdateDto,
+        amount: '40.00',
+        currency: 'GBP',
+      };
+
+      await service.updateItinerary(1, update, userId);
+
+      expect(mockItineraryRepository.update).toHaveBeenCalledWith(
+        update,
+        itinerary.id,
+      );
+    });
+
+    it.each([
+      ['amount without currency', { amount: '40.00' }],
+      ['currency without amount', { currency: 'GBP' }],
+    ])(
+      'rejects updating %s when the existing itinerary has no cost',
+      async (_scenario, cost) => {
+        const itinerary = makeItineraryEntity();
+        mockItineraryRepository.findById.mockResolvedValue(itinerary);
+        mockTripsDestinationsRepository.findById.mockResolvedValue(
+          makeTripDestination(),
+        );
+
+        await expect(
+          service.updateItinerary(1, { ...validUpdateDto, ...cost }, userId),
+        ).rejects.toThrow(ConflictException);
+        expect(mockItineraryRepository.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('validates a partial cost update against the existing itinerary value', async () => {
+      const itinerary = makeItineraryEntity({ currency: 'GBP' });
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      mockTripsDestinationsRepository.findById.mockResolvedValue(
+        makeTripDestination(),
+      );
+      mockItineraryRepository.update.mockResolvedValue({
+        ...itinerary,
+        amount: '40.00',
+      });
+      const update = { ...validUpdateDto, amount: '40.00' };
+
+      await service.updateItinerary(1, update, userId);
+
+      expect(mockItineraryRepository.update).toHaveBeenCalledWith(
+        update,
+        itinerary.id,
+      );
+    });
+
+    it('accepts null amount and currency together to clear the cost', async () => {
+      const update = Object.assign(new ItineraryUpdateDto(), {
+        tripDestinationId: 'dest-1',
+        amount: null,
+        currency: null,
+      });
+
+      await expect(validate(update)).resolves.toEqual([]);
+
+      const itinerary = makeItineraryEntity({
+        amount: '40.00',
+        currency: 'GBP',
+      });
+      mockItineraryRepository.findById.mockResolvedValue(itinerary);
+      mockTripsDestinationsRepository.findById.mockResolvedValue(
+        makeTripDestination(),
+      );
+      mockItineraryRepository.update.mockResolvedValue({
+        ...itinerary,
+        amount: null,
+        currency: null,
+      });
+
+      await expect(
+        service.updateItinerary(1, update, userId),
+      ).resolves.toMatchObject({ amount: null, currency: null });
+      expect(mockItineraryRepository.update).toHaveBeenCalledWith(
+        update,
+        itinerary.id,
+      );
     });
 
     it('should throw NotFoundException when itinerary does not exist', () => {

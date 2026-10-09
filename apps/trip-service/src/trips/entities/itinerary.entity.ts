@@ -43,4 +43,10 @@ export class ItineraryEntity {
 
   @Column({ type: 'float' })
   longitude!: number;
+
+  @Column({ type: 'numeric', nullable: true })
+  amount?: string;
+
+  @Column({ type: 'varchar', length: 3, nullable: true })
+  currency?: string;
 }
