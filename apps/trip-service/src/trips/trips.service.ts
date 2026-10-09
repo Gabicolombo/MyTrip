@@ -30,6 +30,15 @@ import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 import { ItineraryEntity } from './entities/itinerary.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
 import { parseDateAsLocal } from './common/date';
+import type {
+  AmountByCurrency,
+  AmountByActivity,
+} from './repositories/itinerary.repository';
+
+type ItineraryTotals = {
+  totals: AmountByCurrency[];
+  byCategory: AmountByActivity[];
+};
 export interface UploadImageResult {
   imageUrl: string;
   imagePublicId: string;
@@ -174,84 +183,6 @@ export class TripsService {
 
     return await this.tripsRepository.update(Number(tripId), updateData);
   }
-
-  // async updateTripDetails(
-  //   tripId: string,
-  //   updateData: UpdateTripDto,
-  //   file: Express.Multer.File,
-  // ): Promise<Trips> {
-  //   const trip = await this.tripsRepository.findById(tripId);
-  //   if (!trip) {
-  //     throw new NotFoundException('Trip not found');
-  //   }
-
-  //   let imageUrl: string | null = null;
-  //   if (file) {
-  //     const uploadResult: UploadImageResult =
-  //       await this.uploadService.uploadTripImage(file);
-
-  //     imageUrl = uploadResult.imageUrl;
-  //   }
-
-  //   updateData.imageUrl = imageUrl ?? trip.imageUrl;
-
-  //   await this.dataSource.transaction(async (manager) => {
-  //     const destinationsRepo = manager.getRepository(TripDestination);
-
-  //     const incomingDestinations = updateData.destinations
-  //       ?.filter((d) => d.id)
-  //       .map((d) => d.id);
-
-  //     await destinationsRepo.delete({
-  //       trip: { id: Number(tripId) },
-  //       id: Not(In(incomingDestinations!)),
-  //     });
-
-  //     if (updateData.destinations) {
-  //       for (const destination of updateData.destinations) {
-  //         if (destination.id) {
-  //           await destinationsRepo.update(
-  //             { id: destination.id },
-  //             {
-  //               city: destination.city,
-  //               country: destination.country,
-  //               startDate: destination.startDate,
-  //               endDate: destination.endDate,
-  //             },
-  //           );
-  //         } else {
-  //           await destinationsRepo.save({
-  //             trip: { id: Number(tripId) },
-  //             city: destination.city,
-  //             country: destination.country,
-  //             startDate: destination.startDate,
-  //             endDate: destination.endDate,
-  //           });
-  //         }
-  //       }
-  //       const startDate = updateData.destinations
-  //         .map((d) => d.startDate)
-  //         .sort()[0];
-  //       const endDate = updateData.destinations
-  //         .map((d) => d.endDate)
-  //         .sort()
-  //         .at(-1);
-  //       await manager.getRepository(Trips).update(
-  //         { id: Number(tripId) },
-  //         {
-  //           title: updateData.title ?? trip.title,
-  //           description: updateData.description ?? trip.description,
-  //           startDate: startDate ?? trip.startDate,
-  //           endDate: endDate ?? trip.endDate,
-  //           imageUrl: updateData.imageUrl ?? trip.imageUrl,
-  //         },
-  //       );
-  //     }
-  //   });
-
-  //   return this.tripsRepository.findById(tripId) as Promise<Trips>;
-  // }
-
   async addParticipant(tripId: number, userId: number, role: Role) {
     const trip = await this.tripsRepository.findById(String(tripId));
     if (!trip) {
@@ -543,6 +474,15 @@ export class TripsService {
       );
     }
 
+    if (
+      (itinerary.amount && !itinerary.currency) ||
+      (itinerary.currency && !itinerary.amount)
+    ) {
+      throw new ConflictException(
+        'Amount and currency must be provided together',
+      );
+    }
+
     return true;
   }
 
@@ -563,6 +503,8 @@ export class TripsService {
       link: itineraryDto.link,
       latitude: itineraryDto.latitude,
       longitude: itineraryDto.longitude,
+      amount: itineraryDto.amount,
+      currency: itineraryDto.currency,
     } as ItineraryEntity;
 
     await this.validateItinerary(tripDestination, itinerary, userId);
@@ -577,6 +519,8 @@ export class TripsService {
       link: itineraryDto.link,
       latitude: itineraryDto.latitude,
       longitude: itineraryDto.longitude,
+      amount: itineraryDto.amount,
+      currency: itineraryDto.currency,
     });
   }
 
@@ -704,6 +648,43 @@ export class TripsService {
       );
     }
     return itinerary;
+  }
+
+  async getItineraryByTripId(
+    userId: number,
+    tripId: string,
+  ): Promise<ItineraryTotals> {
+    try {
+      const trip = await this.tripsRepository.findById(tripId);
+      if (!trip) {
+        throw new NotFoundException('Trip not found');
+      }
+      if (
+        !(await checkUserPermission(
+          this.tripsParticipantsRepository,
+          userId,
+          trip.id,
+        ))
+      ) {
+        throw new UnauthorizedException(
+          'User does not have permission to view itinerary',
+        );
+      }
+
+      const totals =
+        await this.itineraryRepository.totalAmountByCurrency(tripId);
+
+      const byCategory = await this.itineraryRepository.totalByCategory(tripId);
+
+      return {
+        totals,
+        byCategory,
+      };
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `Error fetching itinerary: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async getItinerary(

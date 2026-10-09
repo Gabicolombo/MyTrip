@@ -38,13 +38,27 @@ export class ItineraryUpdateDto {
   @IsString()
   link?: string;
 
-  @ValidateIf((o) => o.name !== undefined)
+  @ValidateIf((o: ItineraryUpdateDto) => o.name !== undefined)
   @IsNotEmpty()
   @IsNumber()
   latitude?: number;
 
-  @ValidateIf((o) => o.name !== undefined)
+  @ValidateIf((o: ItineraryUpdateDto) => o.name !== undefined)
   @IsNotEmpty()
   @IsNumber()
   longitude?: number;
+
+  @ValidateIf(
+    (o: ItineraryUpdateDto) => o.currency !== undefined && o.currency !== null,
+  )
+  @IsNotEmpty()
+  @IsString()
+  amount?: string;
+
+  @ValidateIf(
+    (o: ItineraryUpdateDto) => o.amount !== undefined && o.amount !== null,
+  )
+  @IsNotEmpty()
+  @IsString()
+  currency?: string;
 }

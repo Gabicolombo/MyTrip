@@ -43,4 +43,12 @@ export class ItineraryDto {
   @IsNotEmpty()
   @IsNumber()
   longitude!: number;
+
+  @IsOptional()
+  @IsString()
+  amount?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }
