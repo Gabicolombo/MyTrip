@@ -28,12 +28,15 @@ export class EmailVerificationService {
   ) {}
 
   async send(user: Pick<User, 'id' | 'email'>): Promise<void> {
-    const apiKey = this.config.get<string>('RESEND_API_KEY');
-    const from = this.config.get<string>('EMAIL_FROM');
+    const apiKey = this.config.get<string>('BREVO_API_KEY');
+    const from = this.config.get<string>('BREVO_EMAIL_FROM');
     const baseUrl = this.config.get<string>('EMAIL_VERIFICATION_URL');
     if (!apiKey || !from || !baseUrl) {
       throw new ServiceUnavailableException('Email delivery is not configured');
     }
+    const sender = from.match(/^\s*(.*?)\s*<([^<>]+)>\s*$/);
+    const senderName = sender?.[1] || 'TripInOrder';
+    const senderEmail = sender?.[2] || from;
     const url = new URL(baseUrl);
     const now = Date.now();
     for (const [id, until] of this.sendCooldown) {
@@ -52,21 +55,23 @@ export class EmailVerificationService {
     this.sendCooldown.set(user.id, now + 60_000);
     url.searchParams.set('token', token);
     try {
-      const response = await fetch('https://api.resend.com/emails', {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          'api-key': apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from,
-          to: [user.email],
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: user.email }],
           subject: 'Confirm your email for TripInOrder',
-          text: `Confirm your email accessing the following link: ${url.toString()}\nThis link expires in 1 hour.`,
+          textContent: `Confirm your email accessing the following link: ${url.toString()}\nThis link expires in 1 hour.`,
         }),
         signal: AbortSignal.timeout(10000),
       });
-      if (!response.ok) throw new Error('Email provider rejected delivery');
+      if (!response.ok) {
+        throw new Error('Email provider rejected delivery');
+      }
     } catch {
       // Keep the cooldown on failures to prevent provider retry abuse.
       throw new ServiceUnavailableException(

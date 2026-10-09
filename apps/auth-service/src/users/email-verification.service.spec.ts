@@ -33,11 +33,11 @@ describe('EmailVerificationService', () => {
 
   function sentToken(index = 0) {
     const body = JSON.parse(fetchMock.mock.calls[index][1]!.body as string) as {
-      text: string;
+      textContent: string;
     };
-    return new URL(body.text.match(/https:\/\/\S+/)![0]).searchParams.get(
-      'token',
-    )!;
+    return new URL(
+      body.textContent.match(/https:\/\/\S+/)![0],
+    ).searchParams.get('token')!;
   }
 
   beforeEach(() => {
@@ -50,8 +50,8 @@ describe('EmailVerificationService', () => {
       users as unknown as Repository<User>,
       new ConfigService({
         JWT_SECRET: 'test-secret',
-        RESEND_API_KEY: 'test-key',
-        EMAIL_FROM: 'test@example.com',
+        BREVO_API_KEY: 'test-key',
+        BREVO_EMAIL_FROM: 'TripInOrder <test@example.com>',
         EMAIL_VERIFICATION_URL: 'https://example.com/verificar-email',
       }),
     );
@@ -64,6 +64,23 @@ describe('EmailVerificationService', () => {
 
   it('emails a signed token with a one-hour expiry without storing token data', async () => {
     await service.send(user);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.brevo.com/v3/smtp/email',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'api-key': 'test-key',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+    expect(
+      JSON.parse(fetchMock.mock.calls[0][1]!.body as string),
+    ).toMatchObject({
+      sender: { name: 'TripInOrder', email: 'test@example.com' },
+      to: [{ email: user.email }],
+      subject: 'Confirm your email for TripInOrder',
+    });
     const payload = jwt.verify<Record<string, unknown>>(sentToken(), {
       secret,
     });
