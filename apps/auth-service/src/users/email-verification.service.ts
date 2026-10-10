@@ -70,6 +70,11 @@ export class EmailVerificationService {
         signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) {
+        console.error(
+          'Brevo recusou o envio:',
+          response.status,
+          await response.text(),
+        );
         throw new Error('Email provider rejected delivery');
       }
     } catch {
