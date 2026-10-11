@@ -5,8 +5,10 @@ import { Role } from '../enums/role.enum';
 import { UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';
 import { User } from 'apps/auth-service/src/users/entities/user.entity';
+import { canViewTrip } from '../common/check-user-permission';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { TripsParticipantsRepository } from '../repositories/tripsParticipants.repository';
 
 @UseGuards(AuthGuard)
 @Resolver(() => TripDetailsType)
@@ -15,6 +17,7 @@ export class TripsResolver {
     private readonly tripsService: TripsService,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly tripsParticipantsRepository: TripsParticipantsRepository,
   ) {}
 
   @Query(() => TripDetailsType, { name: 'tripDetails' })
@@ -22,12 +25,19 @@ export class TripsResolver {
     @Args('id', { type: () => Int }) id: number,
     @Context() context: { req: { user: { id: number } } },
   ): Promise<TripDetailsType> {
-    const trip = await this.tripsService.getTripDetails(
-      context.req.user.id,
-      id,
-    );
+    const trip = await this.tripsService.getTripDetails(id);
     if (!trip) {
       throw new Error('Trip not found');
+    }
+
+    if (
+      !(await canViewTrip(
+        this.tripsParticipantsRepository,
+        context.req.user.id,
+        trip.id,
+      ))
+    ) {
+      throw new Error('User does not have permission to view this trip');
     }
 
     const userIds = trip.participants.map((p) => p.userId);

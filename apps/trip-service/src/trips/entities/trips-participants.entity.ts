@@ -4,10 +4,12 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  Unique,
 } from 'typeorm';
 import { Trips } from './trips.entity';
 
 @Entity('trip_participants')
+@Unique(['tripId', 'userId'])
 export class TripParticipant {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

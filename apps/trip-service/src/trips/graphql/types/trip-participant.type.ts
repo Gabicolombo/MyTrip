@@ -9,6 +9,9 @@ export class TripParticipantType {
   @Field(() => UserType)
   user!: UserType;
 
+  @Field(() => Int)
+  userId!: number;
+
   @Field(() => Role)
   role!: Role;
 

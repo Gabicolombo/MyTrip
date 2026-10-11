@@ -22,6 +22,12 @@ import { TripsDestinationsRepository } from './repositories/tripsDestinations.re
 import { ItineraryRepository } from './repositories/itinerary.repository';
 import { VisaRepository } from './repositories/visa.repository';
 import { TripDestination } from './entities/trips-destinations.entity';
+import { TripsInvitesRepository } from './repositories/tripsInvites.repository';
+import { EmailService } from '../email/email.service';
+import { User } from 'apps/auth-service/src/users/entities/user.entity';
+import { createHash } from 'crypto';
+import { TripsInvites } from './entities/trips-invites.entity';
+import { TripParticipant } from './entities/trips-participants.entity';
 
 const makeTrip = (overrides = {}) => ({
   id: 'trip-1',
@@ -63,9 +69,24 @@ const mockTripsRepository = {
   update: jest.fn(),
 };
 
+const mockTripsInvitesRepository = {
+  addInvite: jest.fn(),
+  findInviteByTripAndEmail: jest.fn(),
+};
+
+const mockEmailService = {
+  sendTripInvite: jest.fn(),
+};
+
+const mockUsersRepository = {
+  findOneBy: jest.fn(),
+  findOne: jest.fn(),
+};
+
 const mockTripsParticipantsRepository = {
   findParticipant: jest.fn(),
   addParticipant: jest.fn(),
+  getParticipantsByTripId: jest.fn(),
 };
 
 const mockTripsDestinationsRepository = {
@@ -90,6 +111,7 @@ const mockUploadService = {
 
 const mockDataSource = {
   transaction: jest.fn(),
+  manager: { transaction: jest.fn() },
   createQueryRunner: jest.fn(),
 };
 
@@ -112,6 +134,12 @@ describe('TripsService - Itinerary', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TripsService,
+        {
+          provide: TripsInvitesRepository,
+          useValue: mockTripsInvitesRepository,
+        },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: getRepositoryToken(User), useValue: mockUsersRepository },
         { provide: TripsRepository, useValue: mockTripsRepository },
         {
           provide: TripsParticipantsRepository,
@@ -138,7 +166,233 @@ describe('TripsService - Itinerary', () => {
     service = module.get<TripsService>(TripsService);
 
     jest.clearAllMocks();
-    jest.spyOn(permissionHelper, 'checkUserPermission').mockResolvedValue(true);
+    jest.spyOn(permissionHelper, 'canEditTrip').mockResolvedValue(true);
+    jest.spyOn(permissionHelper, 'canViewTrip').mockResolvedValue(true);
+  });
+  describe('trip invites', () => {
+    const createdAt = new Date();
+
+    beforeEach(() => {
+      mockTripsRepository.findById.mockResolvedValue({
+        id: 12,
+        title: 'Lisbon',
+      });
+      mockTripsParticipantsRepository.findParticipant.mockResolvedValue({
+        role: 'OWNER',
+      });
+      mockTripsInvitesRepository.findInviteByTripAndEmail.mockResolvedValue(
+        null,
+      );
+      mockTripsInvitesRepository.addInvite.mockImplementation(
+        async (invite) => ({ id: 'invite-1', createdAt, ...invite }),
+      );
+      mockUsersRepository.findOneBy.mockResolvedValue(null);
+    });
+
+    it('renews and resends an existing invite that was not accepted', async () => {
+      mockTripsInvitesRepository.findInviteByTripAndEmail.mockResolvedValue({
+        id: 'invite-old',
+        tripId: 12,
+        email: 'traveler@example.com',
+        role: 'VIEWER',
+        status: 'REJECTED',
+        expiredAt: new Date(Date.now() - 60_000),
+        createdAt,
+      });
+
+      const result = await service.addInvite(
+        12,
+        7,
+        'traveler@example.com',
+        'EDITOR',
+      );
+
+      expect(mockTripsInvitesRepository.addInvite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'invite-old',
+          role: 'EDITOR',
+          status: 'PENDING',
+        }),
+      );
+      expect(result.expiredAt.getTime()).toBeGreaterThan(Date.now());
+      expect(mockEmailService.sendTripInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects an invite that was already accepted', async () => {
+      mockTripsInvitesRepository.findInviteByTripAndEmail.mockResolvedValue({
+        id: 'invite-old',
+        status: 'ACCEPTED',
+      });
+
+      await expect(
+        service.addInvite(12, 7, 'traveler@example.com', 'EDITOR'),
+      ).rejects.toThrow(ConflictException);
+      expect(mockTripsInvitesRepository.addInvite).not.toHaveBeenCalled();
+      expect(mockEmailService.sendTripInvite).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invite for someone who is already a participant', async () => {
+      mockUsersRepository.findOneBy.mockResolvedValue({ id: 8 });
+
+      await expect(
+        service.addInvite(12, 7, 'traveler@example.com', 'EDITOR'),
+      ).rejects.toThrow(ConflictException);
+      expect(
+        mockTripsParticipantsRepository.findParticipant,
+      ).toHaveBeenCalledWith(12, 8);
+      expect(mockTripsInvitesRepository.addInvite).not.toHaveBeenCalled();
+      expect(mockEmailService.sendTripInvite).not.toHaveBeenCalled();
+    });
+
+    it('stores only a token hash and emails the raw token', async () => {
+      const result = await service.addInvite(
+        12,
+        7,
+        'traveler@example.com',
+        'EDITOR',
+      );
+      const sentEmail = mockEmailService.sendTripInvite.mock.calls[0][0];
+
+      expect(sentEmail.token).toMatch(/^[a-f0-9]{64}$/);
+      expect(mockTripsInvitesRepository.addInvite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tokenHash: createHash('sha256').update(sentEmail.token).digest('hex'),
+        }),
+      );
+      expect(result).not.toHaveProperty('tokenHash');
+    });
+
+    it('accepts a valid invite for the verified matching account', async () => {
+      const token = 'a'.repeat(64);
+      const invite = {
+        tripId: 12,
+        email: 'traveler@example.com',
+        role: 'EDITOR',
+        status: 'PENDING',
+        expiredAt: new Date(Date.now() + 60_000),
+      };
+      const inviteRepository = {
+        findOne: jest.fn().mockResolvedValue(invite),
+        save: jest.fn().mockImplementation(async (value) => value),
+      };
+      const participantsRepository = {
+        findOneBy: jest.fn().mockResolvedValue(null),
+        save: jest.fn().mockResolvedValue({}),
+      };
+      mockUsersRepository.findOneBy.mockResolvedValue({
+        id: 7,
+        email: 'traveler@example.com',
+        emailVerified: true,
+      });
+      mockDataSource.transaction.mockImplementation((callback) =>
+        callback({
+          getRepository: (entity) =>
+            entity === TripsInvites ? inviteRepository : participantsRepository,
+        }),
+      );
+
+      await expect(service.acceptInvite(token, 7)).resolves.toEqual({
+        tripId: 12,
+        role: 'EDITOR',
+      });
+      expect(inviteRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tokenHash: createHash('sha256').update(token).digest('hex'),
+          },
+        }),
+      );
+      expect(participantsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ tripId: 12, userId: 7, role: 'EDITOR' }),
+      );
+      expect(invite.status).toBe('ACCEPTED');
+    });
+  });
+  describe('deleteParticipant', () => {
+    const tripId = 12;
+    const ownerId = 7;
+    const targetId = 8;
+    const manager = { delete: jest.fn() };
+
+    beforeEach(() => {
+      mockTripsParticipantsRepository.getParticipantsByTripId.mockResolvedValue(
+        [
+          { userId: ownerId, role: 'OWNER' },
+          { userId: targetId, role: 'EDITOR' },
+          { userId: 9, role: 'VIEWER' },
+        ],
+      );
+      mockUsersRepository.findOne.mockResolvedValue({
+        id: targetId,
+        email: 'traveler@example.com',
+      });
+      manager.delete.mockResolvedValue({ affected: 1 });
+      mockDataSource.manager.transaction.mockImplementation((callback) =>
+        callback(manager),
+      );
+    });
+
+    it('lets the owner remove a participant along with their invite', async () => {
+      await expect(
+        service.deleteParticipant(tripId, targetId, ownerId),
+      ).resolves.toBe(true);
+
+      expect(mockUsersRepository.findOne).toHaveBeenCalledWith({
+        where: { id: targetId },
+      });
+      expect(manager.delete).toHaveBeenCalledWith(TripParticipant, {
+        tripId,
+        userId: targetId,
+      });
+      expect(manager.delete).toHaveBeenCalledWith(TripsInvites, {
+        tripId,
+        email: 'traveler@example.com',
+      });
+    });
+
+    it('rejects a current user who is not a trip participant', async () => {
+      await expect(
+        service.deleteParticipant(tripId, targetId, 99),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockDataSource.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['an editor', targetId, 9],
+      ['a viewer', 9, targetId],
+    ])(
+      'does not let %s remove a participant',
+      async (_role, current, target) => {
+        await expect(
+          service.deleteParticipant(tripId, target, current),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(mockDataSource.manager.transaction).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not let the owner remove themselves', async () => {
+      await expect(
+        service.deleteParticipant(tripId, ownerId, ownerId),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockDataSource.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('returns not found when the target user does not exist', async () => {
+      mockUsersRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.deleteParticipant(tripId, targetId, ownerId),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockDataSource.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed removal as an internal error', async () => {
+      manager.delete.mockRejectedValue(new Error('connection lost'));
+
+      await expect(
+        service.deleteParticipant(tripId, targetId, ownerId),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
   });
   describe('updateDestination', () => {
     const destinationRepo = {
@@ -342,9 +596,7 @@ describe('TripsService - Itinerary', () => {
     });
 
     it('rejects users without editing permission', async () => {
-      jest
-        .spyOn(permissionHelper, 'checkUserPermission')
-        .mockResolvedValue(false);
+      jest.spyOn(permissionHelper, 'canEditTrip').mockResolvedValue(false);
       await expect(
         service.updateDestination('dest-1', { city: 'Rome' }, 7),
       ).rejects.toThrow(UnauthorizedException);
@@ -508,9 +760,7 @@ describe('TripsService - Itinerary', () => {
         makeTripDestination(),
       );
       mockTripsRepository.findById.mockResolvedValue(makeTrip());
-      jest
-        .spyOn(permissionHelper, 'checkUserPermission')
-        .mockResolvedValue(false);
+      jest.spyOn(permissionHelper, 'canEditTrip').mockResolvedValue(false);
 
       return expect(service.addItinerary(validDto, userId)).rejects.toThrow(
         UnauthorizedException,
@@ -707,9 +957,7 @@ describe('TripsService - Itinerary', () => {
         makeTripDestination(),
       );
       mockTripsRepository.findById.mockResolvedValue(makeTrip());
-      jest
-        .spyOn(permissionHelper, 'checkUserPermission')
-        .mockResolvedValue(false);
+      jest.spyOn(permissionHelper, 'canEditTrip').mockResolvedValue(false);
 
       return expect(
         service.updateItinerary(1, validUpdateDto, userId),
@@ -785,9 +1033,7 @@ describe('TripsService - Itinerary', () => {
 
     it('should throw UnauthorizedException when user has no permission', () => {
       mockItineraryRepository.findById.mockResolvedValue(itinerary);
-      jest
-        .spyOn(permissionHelper, 'checkUserPermission')
-        .mockResolvedValue(false);
+      jest.spyOn(permissionHelper, 'canEditTrip').mockResolvedValue(false);
 
       return expect(
         service.deleteItinerary(itinerary.id, userId),

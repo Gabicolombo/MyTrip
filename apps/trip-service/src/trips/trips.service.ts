@@ -6,34 +6,43 @@ import {
   InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
+import { createHash, randomBytes } from 'crypto';
 import { isDateString } from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { TripsRepository } from './repositories/trips.repository';
+import {
+  RoleInvitation,
+  TripsInvitesRepository,
+} from './repositories/tripsInvites.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { UpdateTripDestinationDto } from './dto/update-trip-destination.dto';
 import { VisaCheckDto } from './dto/visa-check.dto';
 import { ItineraryDto } from './dto/add-itinerary.dto';
+import { InviteStatus } from './enums/invite-status.enum';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
+import { User } from 'apps/auth-service/src/users/entities/user.entity';
 import { Status } from './enums/status.enum';
 import { Role } from './enums/role.enum';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 import { TripsDestinationsRepository } from './repositories/tripsDestinations.repository';
 import { UploadService } from '../upload/upload.service';
 import { VisaRepository } from './repositories/visa.repository';
-import { checkUserPermission } from './common/check-user-permission';
+import { canEditTrip, canViewTrip } from './common/check-user-permission';
 import { ItineraryRepository } from './repositories/itinerary.repository';
 import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 import { ItineraryEntity } from './entities/itinerary.entity';
+import { TripsInvites } from './entities/trips-invites.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
 import { parseDateAsLocal } from './common/date';
 import type {
   AmountByCurrency,
   AmountByActivity,
 } from './repositories/itinerary.repository';
+import { EmailService } from '../email/email.service';
 
 type ItineraryTotals = {
   totals: AmountByCurrency[];
@@ -71,9 +80,13 @@ export class TripsService {
     private readonly itineraryRepository: ItineraryRepository,
     private readonly uploadService: UploadService,
     private readonly visaRepository: VisaRepository,
+    private readonly tripsInvitesRepository: TripsInvitesRepository,
+    private readonly emailService: EmailService,
     private readonly dataSource: DataSource,
     @InjectRepository(Trips)
     private readonly tripsDetailsQuery: Repository<Trips>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
   ) {}
 
   async createTrip(
@@ -183,6 +196,134 @@ export class TripsService {
 
     return await this.tripsRepository.update(Number(tripId), updateData);
   }
+
+  async addInvite(
+    tripId: number,
+    userId: number,
+    email: string,
+    role: RoleInvitation,
+  ) {
+    const trip = await this.tripsRepository.findById(String(tripId));
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    const participant = await this.tripsParticipantsRepository.findParticipant(
+      tripId,
+      userId,
+    );
+    if (!participant) {
+      throw new UnauthorizedException('User is not a participant of this trip');
+    }
+    if (participant.role === 'VIEWER') {
+      throw new UnauthorizedException(
+        'User does not have permission to invite participants',
+      );
+    }
+
+    const inviteExists =
+      await this.tripsInvitesRepository.findInviteByTripAndEmail(tripId, email);
+    if (inviteExists?.status === InviteStatus.ACCEPTED) {
+      throw new ConflictException('Invite already accepted for this email');
+    }
+
+    const userExists = await this.usersRepository.findOneBy({ email });
+    if (userExists) {
+      const participantExists =
+        await this.tripsParticipantsRepository.findParticipant(
+          tripId,
+          userExists.id,
+        );
+      if (participantExists) {
+        throw new ConflictException(
+          'User is already a participant of this trip',
+        );
+      }
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const invite = await this.tripsInvitesRepository.addInvite({
+      ...inviteExists,
+      tripId,
+      email,
+      role,
+      tokenHash,
+      status: InviteStatus.PENDING,
+      expiredAt,
+    });
+    await this.emailService.sendTripInvite({
+      to: email,
+      tripTitle: trip.title,
+      token,
+      expiresAt: invite.expiredAt,
+    });
+    return {
+      id: invite.id,
+      tripId: invite.tripId,
+      email: invite.email,
+      role: invite.role,
+      status: invite.status,
+      expiredAt: invite.expiredAt,
+      createdAt: invite.createdAt,
+    };
+  }
+
+  async acceptInvite(token: string, userId: number) {
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user || !user.emailVerified) {
+      throw new UnauthorizedException(
+        'A verified account is required to accept an invite',
+      );
+    }
+
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    return this.dataSource.transaction(async (manager) => {
+      const invitesRepository = manager.getRepository(TripsInvites);
+      const invite = await invitesRepository.findOne({
+        where: { tokenHash },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!invite) {
+        throw new NotFoundException('Invite not found');
+      }
+      if (invite.status !== InviteStatus.PENDING) {
+        throw new ConflictException('Invite is no longer pending');
+      }
+      if (invite.expiredAt <= new Date()) {
+        throw new UnauthorizedException('Invite has expired');
+      }
+      if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
+        throw new UnauthorizedException(
+          'Invite email does not match the current user',
+        );
+      }
+
+      const participantsRepository = manager.getRepository(TripParticipant);
+      const existingParticipant = await participantsRepository.findOneBy({
+        tripId: invite.tripId,
+        userId,
+      });
+      if (existingParticipant) {
+        throw new ConflictException(
+          'User is already a participant in this trip',
+        );
+      }
+
+      await participantsRepository.save({
+        tripId: invite.tripId,
+        userId,
+        role: invite.role,
+        joinedAt: new Date(),
+      });
+      invite.status = InviteStatus.ACCEPTED;
+      await invitesRepository.save(invite);
+
+      return { tripId: invite.tripId, role: invite.role };
+    });
+  }
+
   async addParticipant(tripId: number, userId: number, role: Role) {
     const trip = await this.tripsRepository.findById(String(tripId));
     if (!trip) {
@@ -341,11 +482,7 @@ export class TripsService {
       }
       const trip = destination.trip;
       if (
-        !(await checkUserPermission(
-          this.tripsParticipantsRepository,
-          userId,
-          trip.id,
-        ))
+        !(await canEditTrip(this.tripsParticipantsRepository, userId, trip.id))
       ) {
         throw new UnauthorizedException(
           'User does not have permission to update the destination',
@@ -412,14 +549,13 @@ export class TripsService {
     });
   }
 
-  async getTripDetails(userId: number, tripId: number): Promise<Trips | null> {
+  async getTripDetails(tripId: number): Promise<Trips | null> {
     return this.tripsDetailsQuery
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.destinations', 'destination')
       .addSelect('destination.tripId')
       .innerJoinAndSelect('trip.participants', 'participant')
       .where('trip.id = :tripId', { tripId })
-      .andWhere('participant.userId = :userId', { userId })
       .orderBy('destination.startDate', 'ASC')
       .addOrderBy('destination.id', 'ASC')
       .getOne();
@@ -443,11 +579,7 @@ export class TripsService {
     }
 
     if (
-      !(await checkUserPermission(
-        this.tripsParticipantsRepository,
-        userId,
-        trip.id,
-      ))
+      !(await canEditTrip(this.tripsParticipantsRepository, userId, trip.id))
     ) {
       throw new UnauthorizedException(
         'User does not have permission to manage itinerary',
@@ -566,6 +698,62 @@ export class TripsService {
     }
   }
 
+  async deleteParticipant(
+    tripId: number,
+    userId: number,
+    currentUserId: number,
+  ) {
+    const participants =
+      await this.tripsParticipantsRepository.getParticipantsByTripId(tripId);
+    const currentParticipant = participants.find(
+      (p) => p.userId === currentUserId,
+    );
+
+    if (!currentParticipant) {
+      throw new NotFoundException(
+        'Current user is not a participant of this trip',
+      );
+    }
+
+    if (String(currentParticipant.role) !== String(Role.OWNER)) {
+      throw new UnauthorizedException(
+        'Current user does not have permission to delete participants from this trip',
+      );
+    }
+
+    if (userId === currentUserId) {
+      throw new BadRequestException(
+        'Current user cannot delete themselves from the trip',
+      );
+    }
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    try {
+      await this.dataSource.manager.transaction(async (manager) => {
+        await manager.delete(TripParticipant, {
+          tripId,
+          userId,
+        });
+        await manager.delete(TripsInvites, {
+          tripId,
+          email: user.email,
+        });
+      });
+      return true;
+    } catch (error: unknown) {
+      throw new InternalServerErrorException(
+        `Error deleting participant: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async deleteItinerary(itineraryId: string, userId: number) {
     const itinerary = await this.itineraryRepository.findById(
       String(itineraryId),
@@ -575,7 +763,7 @@ export class TripsService {
     }
     // we need to get the user permission for the trip, not for the destination
     if (
-      !(await checkUserPermission(
+      !(await canEditTrip(
         this.tripsParticipantsRepository,
         userId,
         itinerary.tripDestination.trip.id,
@@ -597,11 +785,7 @@ export class TripsService {
 
   async deleteTrip(tripId: number, userId: number) {
     if (
-      !(await checkUserPermission(
-        this.tripsParticipantsRepository,
-        userId,
-        tripId,
-      ))
+      !(await canEditTrip(this.tripsParticipantsRepository, userId, tripId))
     ) {
       throw new UnauthorizedException(
         'User does not have permission to delete itinerary',
@@ -637,7 +821,7 @@ export class TripsService {
       throw new NotFoundException('Itinerary not found');
     }
     if (
-      !(await checkUserPermission(
+      !(await canViewTrip(
         this.tripsParticipantsRepository,
         userId,
         itinerary.tripDestination.trip.id,
@@ -660,11 +844,7 @@ export class TripsService {
         throw new NotFoundException('Trip not found');
       }
       if (
-        !(await checkUserPermission(
-          this.tripsParticipantsRepository,
-          userId,
-          trip.id,
-        ))
+        !(await canViewTrip(this.tripsParticipantsRepository, userId, trip.id))
       ) {
         throw new UnauthorizedException(
           'User does not have permission to view itinerary',
@@ -698,11 +878,7 @@ export class TripsService {
         );
       const trip = tripDestination.map((td) => td.tripDestination.trip.id);
       if (
-        !(await checkUserPermission(
-          this.tripsParticipantsRepository,
-          userId,
-          trip[0],
-        ))
+        !(await canViewTrip(this.tripsParticipantsRepository, userId, trip[0]))
       ) {
         throw new UnauthorizedException(
           'User does not have permission to delete itinerary',

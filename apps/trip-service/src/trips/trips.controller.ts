@@ -7,13 +7,14 @@ import {
   Patch,
   NotFoundException,
   UnauthorizedException,
-  ConflictException,
   UseInterceptors,
   UploadedFile,
   Get,
   Delete,
   Param,
   ParseUUIDPipe,
+  ParseIntPipe,
+  HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
@@ -22,11 +23,12 @@ import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { VisaCheckDto } from './dto/visa-check.dto';
 import { ItineraryDto } from './dto/add-itinerary.dto';
-import { AddParticipantDto } from './dto/add-participant.dto';
 import { CurrentUser } from 'apps/auth-service/src/decorator/current-user.decorator';
 import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
 import { ItineraryUpdateDto } from './dto/update-itinerary.dto';
 import { UpdateTripDestinationDto } from './dto/update-trip-destination.dto';
+import { TripInvitesDto } from './dto/trip-invites.dto';
+import { AcceptTripInviteDto } from './dto/accept-trip-invite.dto';
 
 @UseGuards(AuthGuard)
 @Controller('trips')
@@ -94,36 +96,22 @@ export class TripsController {
     return await this.tripsService.visaCheck(input);
   }
 
-  @Post('add-participant')
-  async addParticipant(
-    @Body() body: Partial<AddParticipantDto>,
+  @Post(':tripId/invites')
+  async addInvite(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Body() body: TripInvitesDto,
     @CurrentUser() user: { id: number },
   ) {
-    if (!body.tripId) {
-      throw new NotFoundException('Trip ID is required');
-    }
-    if (!body.role) {
-      throw new ConflictException('Role is required');
-    }
-    const userExists = await this.tripsService.checkParticipantExists(
-      body.tripId,
-      user.id,
-    );
-    if (!userExists) {
-      throw new UnauthorizedException("You're not a participant of this trip");
-    }
+    return this.tripsService.addInvite(tripId, user.id, body.email, body.role);
+  }
 
-    if (userExists.role === 'VIEWER') {
-      throw new UnauthorizedException(
-        'User does not have permission to add participants',
-      );
-    }
-
-    return await this.tripsService.addParticipant(
-      body.tripId,
-      Number(body.userId),
-      body.role,
-    );
+  @Post('invites/accept')
+  @HttpCode(200)
+  async acceptInvite(
+    @Body() body: AcceptTripInviteDto,
+    @CurrentUser() user: { id: number },
+  ) {
+    return await this.tripsService.acceptInvite(body.token, user.id);
   }
 
   @Post('add-destination')
@@ -176,6 +164,19 @@ export class TripsController {
     @CurrentUser() user: { id: number },
   ) {
     return await this.tripsService.deleteItinerary(req.params.id, user.id);
+  }
+
+  @Delete('delete-participant/:tripId/:userId')
+  async deleteParticipant(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @CurrentUser() currentUser: { id: number },
+  ) {
+    return await this.tripsService.deleteParticipant(
+      tripId,
+      userId,
+      currentUser.id,
+    );
   }
 
   @Patch('update-destination/:destinationId')

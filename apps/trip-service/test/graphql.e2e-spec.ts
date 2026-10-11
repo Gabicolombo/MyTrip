@@ -9,6 +9,7 @@ import type { Server } from 'http';
 import request from 'supertest';
 import { TripsResolver } from '../src/trips/graphql/trips.resolver';
 import { TripsService } from '../src/trips/trips.service';
+import { TripsParticipantsRepository } from '../src/trips/repositories/tripsParticipants.repository';
 import { User } from '../../auth-service/src/users/entities/user.entity';
 
 describe('GraphQL tripDetails endpoint', () => {
@@ -18,6 +19,7 @@ describe('GraphQL tripDetails endpoint', () => {
   let token: string;
   const trips = { getTripDetails: jest.fn() };
   const users = { find: jest.fn() };
+  const participants = { findParticipant: jest.fn() };
   const query =
     'query Details($id: Int!) { tripDetails(id: $id) { id title startDate destinations { id city } participants { role user { name nationality } } } }';
   type GraphqlResponse = {
@@ -41,6 +43,7 @@ describe('GraphQL tripDetails endpoint', () => {
         TripsResolver,
         { provide: TripsService, useValue: trips },
         { provide: getRepositoryToken(User), useValue: users },
+        { provide: TripsParticipantsRepository, useValue: participants },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -75,8 +78,9 @@ describe('GraphQL tripDetails endpoint', () => {
     users.find.mockResolvedValue([
       { id: 7, name: 'Test User', nationality: 'Brazil' },
     ]);
+    participants.findParticipant.mockResolvedValue({ role: 'VIEWER' });
   });
-  it('returns the GraphQL shape and passes the token identity to the service', async () => {
+  it('returns the GraphQL shape and checks access with the token identity', async () => {
     const res = await request(server)
       .post('/graphql')
       .set('Authorization', `Bearer ${token}`)
@@ -91,7 +95,8 @@ describe('GraphQL tripDetails endpoint', () => {
         { role: 'VIEWER', user: { name: 'Test User', nationality: 'Brazil' } },
       ],
     });
-    expect(trips.getTripDetails).toHaveBeenCalledWith(7, 12);
+    expect(trips.getTripDetails).toHaveBeenCalledWith(12);
+    expect(participants.findParticipant).toHaveBeenCalledWith(12, 7);
     expect(users.find).toHaveBeenCalledWith(
       expect.objectContaining({ select: ['id', 'name', 'nationality'] }),
     );
@@ -119,7 +124,21 @@ describe('GraphQL tripDetails endpoint', () => {
       expect(users.find).not.toHaveBeenCalled();
     },
   );
-  it('returns no data when the service finds no accessible trip', async () => {
+  it('returns no data to a user who is not a trip participant', async () => {
+    participants.findParticipant.mockResolvedValue(null);
+    const res = await request(server)
+      .post('/graphql')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ query, variables: { id: 12 } })
+      .expect(200);
+    const body = res.body as GraphqlResponse;
+    expect(body.data).toBeNull();
+    expect(body.errors?.[0]?.message).toBe(
+      'User does not have permission to view this trip',
+    );
+    expect(users.find).not.toHaveBeenCalled();
+  });
+  it('returns no data when the service finds no trip', async () => {
     trips.getTripDetails.mockResolvedValue(null);
     const res = await request(server)
       .post('/graphql')

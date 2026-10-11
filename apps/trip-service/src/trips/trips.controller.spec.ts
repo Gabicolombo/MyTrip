@@ -5,15 +5,15 @@ import {
 } from '@nestjs/common';
 import { TripsService } from './trips.service';
 import { TripsController } from './trips.controller';
-import { Role } from './enums/role.enum';
 
 describe('TripsController', () => {
   let controller: TripsController;
   const tripsService = {
     myTrips: jest.fn(),
     deleteTrip: jest.fn(),
-    checkParticipantExists: jest.fn(),
-    addParticipant: jest.fn(),
+    addInvite: jest.fn(),
+    acceptInvite: jest.fn(),
+    deleteParticipant: jest.fn(),
     updateDestination: jest.fn(),
   };
 
@@ -44,52 +44,40 @@ describe('TripsController', () => {
     expect(tripsService.deleteTrip).toHaveBeenCalledWith(12, 7);
   });
 
-  describe('addParticipant', () => {
-    const body = { tripId: 12, userId: 8, role: Role.EDITOR };
+  it('forwards the trip, inviter, email, and role when inviting', async () => {
+    tripsService.addInvite.mockResolvedValue({ id: 'invite-1' });
 
-    it('requires a trip ID and role', async () => {
-      await expect(
-        controller.addParticipant({ role: Role.EDITOR }, { id: 7 }),
-      ).rejects.toThrow(NotFoundException);
-      await expect(
-        controller.addParticipant({ tripId: 12 }, { id: 7 }),
-      ).rejects.toThrow(ConflictException);
-      expect(tripsService.checkParticipantExists).not.toHaveBeenCalled();
-    });
-
-    it('rejects a nonparticipant', async () => {
-      tripsService.checkParticipantExists.mockResolvedValue(null);
-
-      await expect(controller.addParticipant(body, { id: 7 })).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(tripsService.addParticipant).not.toHaveBeenCalled();
-    });
-
-    it('rejects a viewer and allows an editor to add a participant', async () => {
-      tripsService.checkParticipantExists.mockResolvedValue({
-        role: Role.VIEWER,
-      });
-      await expect(controller.addParticipant(body, { id: 7 })).rejects.toThrow(
-        UnauthorizedException,
-      );
-
-      tripsService.checkParticipantExists.mockResolvedValue({
-        role: Role.EDITOR,
-      });
-      tripsService.addParticipant.mockResolvedValue({ userId: 8 });
-
-      // eslint-disable-next-line prettier/prettier
-      await expect(
-        controller.addParticipant(body, { id: 7 }),
-      ).resolves.toEqual({ userId: 8 });
-      expect(tripsService.checkParticipantExists).toHaveBeenCalledWith(12, 7);
-      expect(tripsService.addParticipant).toHaveBeenCalledWith(
+    await expect(
+      controller.addInvite(
         12,
-        8,
-        Role.EDITOR,
-      );
-    });
+        { email: 'traveler@example.com', role: 'EDITOR' },
+        { id: 7 },
+      ),
+    ).resolves.toEqual({ id: 'invite-1' });
+    expect(tripsService.addInvite).toHaveBeenCalledWith(
+      12,
+      7,
+      'traveler@example.com',
+      'EDITOR',
+    );
+  });
+
+  it('forwards the token and user when accepting an invite', async () => {
+    tripsService.acceptInvite.mockResolvedValue({ tripId: 12, role: 'EDITOR' });
+
+    await expect(
+      controller.acceptInvite({ token: 'a'.repeat(64) }, { id: 7 }),
+    ).resolves.toEqual({ tripId: 12, role: 'EDITOR' });
+    expect(tripsService.acceptInvite).toHaveBeenCalledWith('a'.repeat(64), 7);
+  });
+
+  it('forwards the trip, target, and current user when deleting a participant', async () => {
+    tripsService.deleteParticipant.mockResolvedValue(true);
+
+    await expect(controller.deleteParticipant(12, 8, { id: 7 })).resolves.toBe(
+      true,
+    );
+    expect(tripsService.deleteParticipant).toHaveBeenCalledWith(12, 8, 7);
   });
 
   describe('updateDestination', () => {

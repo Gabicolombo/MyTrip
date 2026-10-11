@@ -6,9 +6,6 @@ import request from 'supertest';
 import { TripsController } from '../src/trips/trips.controller';
 import { TripsService } from '../src/trips/trips.service';
 
-// Real controller, JWT, permission helper and service methods; repository doubles.
-// These are known bugs, NOT approved behavior. Jest .failing expects the desired
-// assertion to fail today. After a fix, switch the test to ordinary it().
 describe('Known permission defects - expected failures until item 8 is fixed', () => {
   let app: INestApplication;
   let server: Server;
@@ -68,24 +65,18 @@ describe('Known permission defects - expected failures until item 8 is fixed', (
       .set('Authorization', `Bearer ${token}`)
       .expect(200, [itinerary]);
   });
-  it.failing(
-    'BUG: VIEWER should be able to read the itinerary list',
-    async () => {
-      await request(server)
-        .get('/trips/itinerary/destination-id')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200, [itinerary]);
-    },
-  );
-  it.failing(
-    'BUG: VIEWER should be able to read itinerary details',
-    async () => {
-      await request(server)
-        .get('/trips/itinerary-details/activity-id')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200, itinerary);
-    },
-  );
+  it('allows a VIEWER to read the itinerary list', async () => {
+    await request(server)
+      .get('/trips/itinerary/destination-id')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200, [itinerary]);
+  });
+  it('allows a VIEWER to read itinerary details', async () => {
+    await request(server)
+      .get('/trips/itinerary-details/activity-id')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200, itinerary);
+  });
   it('VIEWER must not create destinations', async () => {
     const res = await request(server)
       .post('/trips/add-destination')

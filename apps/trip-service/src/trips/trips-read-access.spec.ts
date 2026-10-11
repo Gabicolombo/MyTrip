@@ -1,5 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { User } from 'apps/auth-service/src/users/entities/user.entity';
 import { TripsService } from './trips.service';
+import { TripsResolver } from './graphql/trips.resolver';
+import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 
 describe('Trip read access', () => {
   const userId = 7;
@@ -40,8 +44,8 @@ describe('Trip read access', () => {
     query.getOne.mockResolvedValue({ id: tripId });
   });
 
-  it('returns trip details only for the requested participant', async () => {
-    await expect(service.getTripDetails(userId, tripId)).resolves.toEqual({
+  it('loads the trip with all of its participants', async () => {
+    await expect(service.getTripDetails(tripId)).resolves.toEqual({
       id: tripId,
     });
 
@@ -50,23 +54,78 @@ describe('Trip read access', () => {
       'participant',
     );
     expect(query.where).toHaveBeenCalledWith('trip.id = :tripId', { tripId });
-    expect(query.andWhere).toHaveBeenCalledWith(
-      'participant.userId = :userId',
-      { userId },
-    );
-    expect(participants.findParticipant).not.toHaveBeenCalled();
+    expect(query.andWhere).not.toHaveBeenCalled();
     expect(query.orderBy).toHaveBeenCalledWith('destination.startDate', 'ASC');
     expect(query.addOrderBy).toHaveBeenCalledWith('destination.id', 'ASC');
   });
 
-  it('returns null when the requested user is not a trip participant', async () => {
+  it('returns null when the trip does not exist', async () => {
     query.getOne.mockResolvedValue(null);
 
-    await expect(service.getTripDetails(userId, tripId)).resolves.toBeNull();
-    expect(query.andWhere).toHaveBeenCalledWith(
-      'participant.userId = :userId',
-      { userId },
-    );
+    await expect(service.getTripDetails(tripId)).resolves.toBeNull();
+  });
+
+  describe('tripDetails query', () => {
+    const tripsService = { getTripDetails: jest.fn() };
+    const users = { find: jest.fn() };
+    const context = { req: { user: { id: userId } } };
+    const trip = {
+      id: tripId,
+      startDate: '2026-08-01',
+      endDate: '2026-08-10',
+      destinations: [],
+      participants: [
+        { userId: 3, role: 'OWNER', joinedAt: '2026-07-01' },
+        { userId, role: 'VIEWER', joinedAt: '2026-07-02' },
+      ],
+    };
+    let resolver: TripsResolver;
+
+    beforeEach(() => {
+      resolver = new TripsResolver(
+        tripsService as unknown as TripsService,
+        users as unknown as Repository<User>,
+        participants as unknown as TripsParticipantsRepository,
+      );
+      tripsService.getTripDetails.mockResolvedValue(trip);
+      users.find.mockResolvedValue([
+        { id: 3, name: 'Ana', nationality: 'BR' },
+        { id: userId, name: 'Bia', nationality: 'PT' },
+      ]);
+    });
+
+    it('rejects a user who is not a trip participant', async () => {
+      participants.findParticipant.mockResolvedValue(null);
+
+      await expect(resolver.getTripDetails(tripId, context)).rejects.toThrow(
+        'User does not have permission to view this trip',
+      );
+      expect(participants.findParticipant).toHaveBeenCalledWith(tripId, userId);
+      expect(users.find).not.toHaveBeenCalled();
+    });
+
+    it('shows every participant to a viewer', async () => {
+      participants.findParticipant.mockResolvedValue({ role: 'VIEWER' });
+
+      const result = await resolver.getTripDetails(tripId, context);
+
+      expect(result.participants).toEqual([
+        expect.objectContaining({ userId: 3, role: 'OWNER' }),
+        expect.objectContaining({ userId, role: 'VIEWER' }),
+      ]);
+      expect(result.participants.map((p) => p.user.name)).toEqual([
+        'Ana',
+        'Bia',
+      ]);
+    });
+
+    it('reports a missing trip as not found', async () => {
+      tripsService.getTripDetails.mockResolvedValue(null);
+
+      await expect(resolver.getTripDetails(tripId, context)).rejects.toThrow(
+        'Trip not found',
+      );
+    });
   });
 
   it('returns not found when itinerary details do not exist', async () => {
