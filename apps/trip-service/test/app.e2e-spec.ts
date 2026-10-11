@@ -26,7 +26,9 @@ describe('Trip HTTP endpoints', () => {
     createTrip: jest.fn(),
     visaCheck: jest.fn(),
     checkParticipantExists: jest.fn(),
-    addParticipant: jest.fn(),
+    addInvite: jest.fn(),
+    acceptInvite: jest.fn(),
+    deleteParticipant: jest.fn(),
     addDestination: jest.fn(),
     addItinerary: jest.fn(),
     updateItinerary: jest.fn(),
@@ -58,6 +60,8 @@ describe('Trip HTTP endpoints', () => {
     latitude: 48.86,
     longitude: 2.35,
   };
+  const invite = { email: 'traveler@example.com', role: 'VIEWER' };
+  const inviteToken = 'a'.repeat(64);
   type Route = {
     method: 'get' | 'post' | 'patch' | 'delete';
     path: string;
@@ -120,12 +124,29 @@ describe('Trip HTTP endpoints', () => {
     },
     {
       method: 'post',
-      path: '/trips/add-participant',
-      handler: 'addParticipant',
-      body: { tripId: 12, userId: 8, role: 'VIEWER' },
-      args: [12, 8, 'VIEWER'],
-      result: { userId: 8 },
+      path: '/trips/12/invites',
+      handler: 'addInvite',
+      body: invite,
+      args: [12, 7, invite.email, invite.role],
+      result: { id: 'invite-id' },
       status: 201,
+    },
+    {
+      method: 'post',
+      path: '/trips/invites/accept',
+      handler: 'acceptInvite',
+      body: { token: inviteToken },
+      args: [inviteToken, 7],
+      result: { tripId: 12, role: 'VIEWER' },
+      status: 200,
+    },
+    {
+      method: 'delete',
+      path: '/trips/delete-participant/12/8',
+      handler: 'deleteParticipant',
+      args: [12, 8, 7],
+      result: true,
+      status: 200,
     },
     {
       method: 'post',
@@ -258,6 +279,8 @@ describe('Trip HTTP endpoints', () => {
   it.each([
     ['post', '/trips/create-trip', 'createTrip'],
     ['post', '/trips/visa-check', 'visaCheck'],
+    ['post', '/trips/12/invites', 'addInvite'],
+    ['post', '/trips/invites/accept', 'acceptInvite'],
     ['post', '/trips/add-itinerary', 'addItinerary'],
     ['patch', '/trips/update-itinerary/activity-id', 'updateItinerary'],
     ['patch', '/trips/update-trip/12', 'updateTrip'],
@@ -280,34 +303,14 @@ describe('Trip HTTP endpoints', () => {
       .expect(400);
     expect(service.createTrip).not.toHaveBeenCalled();
   });
-  it.each([
-    [
-      '/trips/add-participant',
-      'post',
-      { tripId: 12, userId: 8, role: 'VIEWER' },
-      'addParticipant',
-    ],
-    ['/trips/update-trip/12', 'patch', { title: 'Updated' }, 'updateTrip'],
-  ] as const)(
-    'blocks VIEWER in controller permissions for %s',
-    async (path, method, body, handler) => {
-      service.checkParticipantExists.mockResolvedValue({ role: 'VIEWER' });
-      await request(app.getHttpServer())
-        [method](path)
-        .set('Authorization', `Bearer ${token}`)
-        .send(body)
-        .expect(401);
-      expect(service[handler]).not.toHaveBeenCalled();
-    },
-  );
-  it('blocks nonparticipants when adding participants', async () => {
-    service.checkParticipantExists.mockResolvedValue(null);
+  it('blocks VIEWER in controller permissions when updating a trip', async () => {
+    service.checkParticipantExists.mockResolvedValue({ role: 'VIEWER' });
     await request(app.getHttpServer())
-      .post('/trips/add-participant')
+      .patch('/trips/update-trip/12')
       .set('Authorization', `Bearer ${token}`)
-      .send({ tripId: 12, userId: 8, role: 'VIEWER' })
+      .send({ title: 'Updated' })
       .expect(401);
-    expect(service.addParticipant).not.toHaveBeenCalled();
+    expect(service.updateTrip).not.toHaveBeenCalled();
   });
   it('blocks nonparticipants when updating a trip', async () => {
     service.checkParticipantExists.mockResolvedValue(null);
@@ -319,24 +322,46 @@ describe('Trip HTTP endpoints', () => {
     expect(service.updateTrip).not.toHaveBeenCalled();
   });
   it.each([
-    [{}, 404],
-    [{ tripId: 12 }, 409],
-  ] as const)('rejects missing participant fields %#', async (body, status) => {
+    [{ ...invite, email: 'not-an-email' }],
+    [{ ...invite, role: 'OWNER' }],
+  ])('rejects an invalid invite %#', async (body) => {
     await request(app.getHttpServer())
-      .post('/trips/add-participant')
+      .post('/trips/12/invites')
       .set('Authorization', `Bearer ${token}`)
       .send(body)
-      .expect(status);
-    expect(service.addParticipant).not.toHaveBeenCalled();
+      .expect(400);
+    expect(service.addInvite).not.toHaveBeenCalled();
   });
-  it('returns a conflict for a duplicate participant', async () => {
-    service.addParticipant.mockRejectedValue(
-      new ConflictException('User is already a participant'),
+  it('normalizes the invited email before calling the service', async () => {
+    service.addInvite.mockResolvedValue({ id: 'invite-id' });
+    await request(app.getHttpServer())
+      .post('/trips/12/invites')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...invite, email: '  Traveler@Example.com ' })
+      .expect(201);
+    expect(service.addInvite).toHaveBeenCalledWith(
+      12,
+      7,
+      invite.email,
+      invite.role,
+    );
+  });
+  it('rejects a malformed invite token', async () => {
+    await request(app.getHttpServer())
+      .post('/trips/invites/accept')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ token: 'short' })
+      .expect(400);
+    expect(service.acceptInvite).not.toHaveBeenCalled();
+  });
+  it('returns a conflict for an invite that was already accepted', async () => {
+    service.addInvite.mockRejectedValue(
+      new ConflictException('Invite already accepted for this email'),
     );
     await request(app.getHttpServer())
-      .post('/trips/add-participant')
+      .post('/trips/12/invites')
       .set('Authorization', `Bearer ${token}`)
-      .send({ tripId: 12, userId: 8, role: 'VIEWER' })
+      .send(invite)
       .expect(409);
   });
   it('accepts a multipart trip cover', async () => {
