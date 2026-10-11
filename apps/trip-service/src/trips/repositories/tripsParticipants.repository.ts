@@ -25,4 +25,18 @@ export class TripsParticipantsRepository {
       where: { tripId, userId },
     });
   }
+
+  async getParticipantsByTripId(tripId: number): Promise<TripParticipant[]> {
+    return this.tripsParticipantsRepo.find({
+      where: { tripId },
+    });
+  }
+
+  async delete(tripId: number, userId: number): Promise<void> {
+    const user = await this.findParticipant(tripId, userId);
+    if (!user) {
+      throw new Error('Participant not found');
+    }
+    await this.tripsParticipantsRepo.delete({ tripId, userId });
+  }
 }

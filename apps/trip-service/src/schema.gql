@@ -43,6 +43,7 @@ type TripParticipantType {
   role: Role!
   tripId: Int!
   user: UserType!
+  userId: Int!
 }
 
 type UserType {

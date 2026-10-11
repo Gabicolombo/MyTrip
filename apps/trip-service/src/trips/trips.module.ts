@@ -18,10 +18,14 @@ import * as multer from 'multer';
 import { UploadModule } from '../upload/upload.module';
 import { VisaRepository } from './repositories/visa.repository';
 import { TripsResolver } from './graphql/trips.resolver';
+import { TripsInvitesRepository } from './repositories/tripsInvites.repository';
 import { User } from 'apps/auth-service/src/users/entities/user.entity';
 import { ItineraryRepository } from './repositories/itinerary.repository';
+import { EmailModule } from '../email/email.module';
+import { TripsInvites } from './entities/trips-invites.entity';
 @Module({
   imports: [
+    EmailModule,
     DatabaseModule,
     TypeOrmModule.forFeature([
       Trips,
@@ -29,6 +33,7 @@ import { ItineraryRepository } from './repositories/itinerary.repository';
       TripDestination,
       ItineraryEntity,
       VisaCheckEntity,
+      TripsInvites,
       User,
     ]),
     AuthModule,
@@ -45,6 +50,7 @@ import { ItineraryRepository } from './repositories/itinerary.repository';
     TripsParticipantsRepository,
     TripsDestinationsRepository,
     ItineraryRepository,
+    TripsInvitesRepository,
     VisaRepository,
     TripsResolver,
   ],
