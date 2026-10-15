@@ -8,6 +8,15 @@ export interface TripInviteEmail {
   expiresAt: Date;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 @Injectable()
 export class EmailService {
   constructor(private readonly config: ConfigService) {}
@@ -30,15 +39,17 @@ export class EmailService {
 
     await this.sendText({
       to: input.to,
-      subject: `Invite to participate in${input.tripTitle}`,
-      textContent: [
-        `You got the invitation to participate in "${input.tripTitle}" in TripInOrder.`,
-        '',
-        `To accept, visit: ${acceptUrl.toString()}`,
-        'Enter or create an account with the same email and confirm your address.',
-        `The invitation is valid until ${input.expiresAt.toISOString()} (UTC).`,
-        '',
-        'If you were not expecting this invitation, you can ignore this message.',
+      subject: `Invite to participate in ${input.tripTitle}`,
+      htmlContent: [
+        `<p>You got the invitation to participate in "<strong>${escapeHtml(input.tripTitle)}</strong>" in TripInOrder.</p>`,
+        `<p>
+            <a href="${acceptUrl.toString()}"
+            style="display:inline-block;padding:12px 24px; background:#9333EA;color:#ffffff;text-decoration:none;border-radius:5px;font-family:Arial,sans-serif;font-weight:bold;"
+            >To accept click here</a>
+         </p>`,
+        `<p>Enter or create an account with the same email and confirm your address.</p>`,
+        `<p>The invitation is valid until ${input.expiresAt.getUTCDate()}-${input.expiresAt.getUTCMonth() + 1}-${input.expiresAt.getUTCFullYear()} (UTC).</p>`,
+        `<p>If you were not expecting this invitation, you can ignore this message.</p>`,
       ].join('\n'),
     });
   }
@@ -46,7 +57,7 @@ export class EmailService {
   private async sendText(message: {
     to: string;
     subject: string;
-    textContent: string;
+    htmlContent: string;
   }): Promise<void> {
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = this.config.get<string>('BREVO_EMAIL_FROM');
@@ -66,7 +77,7 @@ export class EmailService {
           },
           to: [{ email: message.to }],
           subject: message.subject,
-          textContent: message.textContent,
+          htmlContent: message.htmlContent,
         }),
         signal: AbortSignal.timeout(10000),
       });
