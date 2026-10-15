@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
-import { UploadImageResult } from '../trips/trips.service';
+import { UploadImageResult } from '../trips/services/trips.service';
 
 @Injectable()
 export class UploadService {

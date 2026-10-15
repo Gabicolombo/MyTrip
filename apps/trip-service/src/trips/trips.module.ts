@@ -1,7 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TripsController } from './trips.controller';
-import { TripsService } from './trips.service';
+import { TripsController } from './controllers/trips.controller';
+import { DestinationsController } from './controllers/destinations.controller';
+import { ItineraryController } from './controllers/itinerary.controller';
+import { ParticipantsController } from './controllers/participants.controller';
+import { InvitesController } from './controllers/invites.controller';
+import { VisaController } from './controllers/visa.controller';
+import { TripsService } from './services/trips.service';
+import { DestinationsService } from './services/destinations.service';
+import { ItineraryService } from './services/itinerary.service';
+import { ParticipantsService } from './services/participants.service';
+import { InvitesService } from './services/invites.service';
+import { VisaService } from './services/visa.service';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 import { DatabaseModule } from 'y/database/database.module';
@@ -46,6 +56,11 @@ import { TripsInvites } from './entities/trips-invites.entity';
   ],
   providers: [
     TripsService,
+    DestinationsService,
+    ItineraryService,
+    ParticipantsService,
+    InvitesService,
+    VisaService,
     TripsRepository,
     TripsParticipantsRepository,
     TripsDestinationsRepository,
@@ -54,6 +69,13 @@ import { TripsInvites } from './entities/trips-invites.entity';
     VisaRepository,
     TripsResolver,
   ],
-  controllers: [TripsController],
+  controllers: [
+    TripsController,
+    DestinationsController,
+    ItineraryController,
+    ParticipantsController,
+    InvitesController,
+    VisaController,
+  ],
 })
 export class TripsModule {}

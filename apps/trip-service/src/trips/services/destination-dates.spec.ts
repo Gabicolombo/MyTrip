@@ -5,10 +5,10 @@ import {
 } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { EntityManager } from 'typeorm';
-import { TripsService } from './trips.service';
-import { TripDestination } from './entities/trips-destinations.entity';
-import { AddTripDestinationDto } from './dto/add-trip-destination.dto';
-import { parseDateAsLocal } from './common/date';
+import { DestinationsService } from './destinations.service';
+import { TripDestination } from '../entities/trips-destinations.entity';
+import { AddTripDestinationDto } from '../dto/add-trip-destination.dto';
+import { parseDateAsLocal } from '../common/date';
 
 describe('Destination dates and trip expansion', () => {
   const trips = { findById: jest.fn() };
@@ -21,7 +21,7 @@ describe('Destination dates and trip expansion', () => {
   };
   const tripRepo = { update: jest.fn() };
   const dataSource = { transaction: jest.fn() };
-  let service: TripsService;
+  let service: DestinationsService;
   const destination = (
     startDate: string,
     endDate: string,
@@ -48,7 +48,7 @@ describe('Destination dates and trip expansion', () => {
       Promise.resolve(items),
     );
     service = Object.assign(
-      Object.create(TripsService.prototype) as TripsService,
+      Object.create(DestinationsService.prototype) as DestinationsService,
       {
         tripsRepository: trips,
         tripsParticipantsRepository: participants,

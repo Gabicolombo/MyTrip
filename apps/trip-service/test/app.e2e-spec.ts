@@ -8,8 +8,18 @@ import { Test } from '@nestjs/testing';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { MulterModule } from '@nestjs/platform-express';
 import request from 'supertest';
-import { TripsController } from '../src/trips/trips.controller';
-import { TripsService } from '../src/trips/trips.service';
+import { TripsController } from '../src/trips/controllers/trips.controller';
+import { DestinationsController } from '../src/trips/controllers/destinations.controller';
+import { ItineraryController } from '../src/trips/controllers/itinerary.controller';
+import { ParticipantsController } from '../src/trips/controllers/participants.controller';
+import { InvitesController } from '../src/trips/controllers/invites.controller';
+import { VisaController } from '../src/trips/controllers/visa.controller';
+import { TripsService } from '../src/trips/services/trips.service';
+import { DestinationsService } from '../src/trips/services/destinations.service';
+import { ItineraryService } from '../src/trips/services/itinerary.service';
+import { ParticipantsService } from '../src/trips/services/participants.service';
+import { InvitesService } from '../src/trips/services/invites.service';
+import { VisaService } from '../src/trips/services/visa.service';
 import { TripServiceController } from '../src/trip-service.controller';
 import { TripServiceService } from '../src/trip-service.service';
 
@@ -203,9 +213,23 @@ describe('Trip HTTP endpoints', () => {
         JwtModule.register({ secret: 'endpoint-tests-only' }),
         MulterModule.register({ limits: { fileSize: 5 * 1024 * 1024 } }),
       ],
-      controllers: [TripsController, TripServiceController],
+      controllers: [
+        TripsController,
+        DestinationsController,
+        ItineraryController,
+        ParticipantsController,
+        InvitesController,
+        VisaController,
+        TripServiceController,
+      ],
       providers: [
+        // Every feature service shares one double, so routes keep their handler names.
         { provide: TripsService, useValue: service },
+        { provide: DestinationsService, useValue: service },
+        { provide: ItineraryService, useValue: service },
+        { provide: ParticipantsService, useValue: service },
+        { provide: InvitesService, useValue: service },
+        { provide: VisaService, useValue: service },
         TripServiceService,
       ],
     }).compile();

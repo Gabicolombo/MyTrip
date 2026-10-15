@@ -1,6 +1,6 @@
 import { Resolver, Query, Args, Int, Context } from '@nestjs/graphql';
 import { TripDetailsType } from './types/trip-details.type';
-import { TripsService } from '../trips.service';
+import { TripsService } from '../services/trips.service';
 import { Role } from '../enums/role.enum';
 import { UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'apps/auth-service/src/auth/auth.guard';

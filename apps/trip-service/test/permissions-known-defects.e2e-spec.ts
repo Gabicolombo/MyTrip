@@ -3,8 +3,11 @@ import { Test } from '@nestjs/testing';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import type { Server } from 'http';
 import request from 'supertest';
-import { TripsController } from '../src/trips/trips.controller';
-import { TripsService } from '../src/trips/trips.service';
+import { DestinationsController } from '../src/trips/controllers/destinations.controller';
+import { ItineraryController } from '../src/trips/controllers/itinerary.controller';
+import { DestinationsService } from '../src/trips/services/destinations.service';
+import { ItineraryService } from '../src/trips/services/itinerary.service';
+import { ParticipantsService } from '../src/trips/services/participants.service';
 
 describe('Known permission defects - expected failures until item 8 is fixed', () => {
   let app: INestApplication;
@@ -18,28 +21,47 @@ describe('Known permission defects - expected failures until item 8 is fixed', (
   const itinerary = { id: 'activity-id', tripDestination: destination };
   const saved = jest.fn();
   beforeAll(async () => {
-    const realService = Object.assign(
-      Object.create(TripsService.prototype) as TripsService,
+    const tripsRepository = { findById: () => trip };
+    const tripsParticipantsRepository = {
+      findParticipant: (tripId: number, userId: number) =>
+        tripId === 12 && userId === 7 ? { role } : null,
+    };
+    const tripsDestinationsRepository = {
+      findById: () => destination,
+      addDestination: saved,
+    };
+    const itineraryService = Object.assign(
+      Object.create(ItineraryService.prototype) as ItineraryService,
       {
-        tripsRepository: { findById: () => trip },
-        tripsParticipantsRepository: {
-          findParticipant: (tripId: number, userId: number) =>
-            tripId === 12 && userId === 7 ? { role } : null,
-        },
-        tripsDestinationsRepository: {
-          findById: () => destination,
-          addDestination: saved,
-        },
+        tripsRepository,
+        tripsParticipantsRepository,
+        tripsDestinationsRepository,
         itineraryRepository: {
           findById: () => itinerary,
           getByTripDestinationId: () => (empty ? [] : [itinerary]),
         },
       },
     );
+    const destinationsService = Object.assign(
+      Object.create(DestinationsService.prototype) as DestinationsService,
+      {
+        tripsRepository,
+        tripsParticipantsRepository,
+        tripsDestinationsRepository,
+      },
+    );
+    const participantsService = Object.assign(
+      Object.create(ParticipantsService.prototype) as ParticipantsService,
+      { tripsRepository, tripsParticipantsRepository },
+    );
     const module = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'endpoint-tests-only' })],
-      controllers: [TripsController],
-      providers: [{ provide: TripsService, useValue: realService }],
+      controllers: [ItineraryController, DestinationsController],
+      providers: [
+        { provide: ItineraryService, useValue: itineraryService },
+        { provide: DestinationsService, useValue: destinationsService },
+        { provide: ParticipantsService, useValue: participantsService },
+      ],
     }).compile();
     app = module.createNestApplication();
     app.useLogger(false);

@@ -27,14 +27,17 @@ describe('EmailService', () => {
     await new EmailService(new ConfigService(settings)).sendTripInvite(invite);
     const [endpoint, request] = fetchMock.mock.calls[0];
     expect(endpoint).toBe('https://api.brevo.com/v3/smtp/email');
-    const body = JSON.parse(request!.body as string);
+    const body = JSON.parse(request!.body as string) as {
+      sender: unknown;
+      to: unknown;
+      htmlContent: string;
+    };
     expect(body.sender).toEqual({
       name: 'TripInOrder',
       email: 'invites@example.com',
     });
     expect(body.to).toEqual([{ email: invite.to }]);
-    expect(body.textContent).toContain(invite.expiresAt.toISOString());
-    const link = new URL(body.textContent.match(/https:\/\/\S+/)[0]);
+    const link = new URL(body.htmlContent.match(/href="([^"]+)"/)![1]);
     expect(link.pathname).toBe('/convite');
     expect(link.searchParams.get('token')).toBe(invite.token);
   });

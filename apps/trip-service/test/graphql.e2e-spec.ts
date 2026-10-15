@@ -8,7 +8,7 @@ import type { Request as ExpressRequest } from 'express';
 import type { Server } from 'http';
 import request from 'supertest';
 import { TripsResolver } from '../src/trips/graphql/trips.resolver';
-import { TripsService } from '../src/trips/trips.service';
+import { TripsService } from '../src/trips/services/trips.service';
 import { TripsParticipantsRepository } from '../src/trips/repositories/tripsParticipants.repository';
 import { User } from '../../auth-service/src/users/entities/user.entity';
 

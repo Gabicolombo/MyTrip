@@ -11,9 +11,9 @@ async function bootstrap() {
     }),
   );
   app.enableCors();
-  await app.listen(process.env.port ?? 4000);
+  await app.listen(process.env.PORT ?? 4000);
   console.log(
-    `🚀 Application is running on: http://localhost:${process.env.port ?? 4000}`,
+    `🚀 Application is running on: http://localhost:${process.env.PORT ?? 4000}`,
   );
 }
 bootstrap();

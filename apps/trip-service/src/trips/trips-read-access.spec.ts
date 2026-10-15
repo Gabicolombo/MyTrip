@@ -1,7 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from 'apps/auth-service/src/users/entities/user.entity';
-import { TripsService } from './trips.service';
+import { TripsService } from './services/trips.service';
+import { ItineraryService } from './services/itinerary.service';
 import { TripsResolver } from './graphql/trips.resolver';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
 
@@ -9,6 +10,7 @@ describe('Trip read access', () => {
   const userId = 7;
   const tripId = 12;
   let service: TripsService;
+  let itineraryService: ItineraryService;
   const participants = { findParticipant: jest.fn() };
   const itineraries = { findById: jest.fn() };
   const query = {
@@ -29,8 +31,14 @@ describe('Trip read access', () => {
       Object.create(TripsService.prototype) as TripsService,
       {
         tripsParticipantsRepository: participants,
-        itineraryRepository: itineraries,
         tripsDetailsQuery: query,
+      },
+    );
+    itineraryService = Object.assign(
+      Object.create(ItineraryService.prototype) as ItineraryService,
+      {
+        tripsParticipantsRepository: participants,
+        itineraryRepository: itineraries,
       },
     );
     query.createQueryBuilder.mockReturnValue(query);
@@ -131,7 +139,7 @@ describe('Trip read access', () => {
   it('returns not found when itinerary details do not exist', async () => {
     itineraries.findById.mockResolvedValue(null);
     await expect(
-      service.getItineraryDetails('missing', userId),
+      itineraryService.getItineraryDetails('missing', userId),
     ).rejects.toThrow(NotFoundException);
   });
 });
