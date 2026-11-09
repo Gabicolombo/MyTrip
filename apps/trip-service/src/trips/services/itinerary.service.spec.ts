@@ -15,6 +15,7 @@ import { TripsRepository } from '../repositories/trips.repository';
 import { TripsParticipantsRepository } from '../repositories/tripsParticipants.repository';
 import { TripsDestinationsRepository } from '../repositories/tripsDestinations.repository';
 import { ItineraryRepository } from '../repositories/itinerary.repository';
+import { TransportsRepository } from '../repositories/transports.repository';
 
 const makeTrip = (overrides = {}) => ({
   id: 'trip-1',
@@ -72,6 +73,12 @@ const mockItineraryRepository = {
   findById: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
+  totalAmountByCurrency: jest.fn(),
+  totalByCategory: jest.fn(),
+};
+
+const mockTransportsRepository = {
+  getBudgetByTrip: jest.fn(),
 };
 
 const validDto: ItineraryDto = {
@@ -103,6 +110,7 @@ describe('ItineraryService', () => {
           useValue: mockTripsDestinationsRepository,
         },
         { provide: ItineraryRepository, useValue: mockItineraryRepository },
+        { provide: TransportsRepository, useValue: mockTransportsRepository },
       ],
     }).compile();
 
@@ -482,6 +490,49 @@ describe('ItineraryService', () => {
       return expect(
         service.deleteItinerary(itinerary.id, userId),
       ).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('getItineraryByTripId (budget)', () => {
+    beforeEach(() => {
+      mockTripsRepository.findById.mockResolvedValue(makeTrip());
+      jest.spyOn(permissionHelper, 'canViewTrip').mockResolvedValue(true);
+    });
+
+    it('includes transport costs even when there are no itinerary costs', async () => {
+      mockItineraryRepository.totalAmountByCurrency.mockResolvedValue([]);
+      mockItineraryRepository.totalByCategory.mockResolvedValue([]);
+      mockTransportsRepository.getBudgetByTrip.mockResolvedValue([
+        { currency: 'EUR', amount: '100' },
+      ]);
+
+      const result = await service.getItineraryByTripId(1, '1');
+
+      expect(result.totals).toEqual([{ currency: 'EUR', amount: '100' }]);
+      expect(result.byCategory).toEqual([
+        { activity: 'Transport', currency: 'EUR', amount: '100' },
+      ]);
+    });
+
+    it('sums transport costs into matching currencies and adds new ones', async () => {
+      mockItineraryRepository.totalAmountByCurrency.mockResolvedValue([
+        { currency: 'EUR', amount: '50.5' },
+      ]);
+      mockItineraryRepository.totalByCategory.mockResolvedValue([
+        { activity: 'Museum', currency: 'EUR', amount: '50.5' },
+      ]);
+      mockTransportsRepository.getBudgetByTrip.mockResolvedValue([
+        { currency: 'EUR', amount: '100' },
+        { currency: 'USD', amount: '20' },
+      ]);
+
+      const result = await service.getItineraryByTripId(1, '1');
+
+      expect(result.totals).toEqual([
+        { currency: 'EUR', amount: '150.5' },
+        { currency: 'USD', amount: '20' },
+      ]);
+      expect(result.byCategory).toHaveLength(3);
     });
   });
 });

@@ -9,6 +9,7 @@ import { TripsRepository } from '../repositories/trips.repository';
 import { TripsParticipantsRepository } from '../repositories/tripsParticipants.repository';
 import { TripsDestinationsRepository } from '../repositories/tripsDestinations.repository';
 import { ItineraryRepository } from '../repositories/itinerary.repository';
+import { TransportsRepository } from '../repositories/transports.repository';
 import type {
   AmountByCurrency,
   AmountByActivity,
@@ -31,6 +32,7 @@ export class ItineraryService {
     private readonly tripsParticipantsRepository: TripsParticipantsRepository,
     private readonly tripsDestinationsRepository: TripsDestinationsRepository,
     private readonly itineraryRepository: ItineraryRepository,
+    private readonly transportsRepository: TransportsRepository,
   ) {}
 
   private normalizeDate(date: Date | string): number {
@@ -244,6 +246,25 @@ export class ItineraryService {
         await this.itineraryRepository.totalAmountByCurrency(tripId);
 
       const byCategory = await this.itineraryRepository.totalByCategory(tripId);
+
+      const transportTotals = await this.transportsRepository.getBudgetByTrip(
+        Number(tripId),
+      );
+
+      for (const tt of transportTotals) {
+        const total = totals.find((t) => t.currency === tt.currency);
+        if (total) {
+          total.amount = String(Number(total.amount) + Number(tt.amount));
+        } else {
+          totals.push({ currency: tt.currency, amount: tt.amount });
+        }
+
+        byCategory.push({
+          activity: 'Transport',
+          currency: tt.currency,
+          amount: tt.amount,
+        });
+      }
 
       return {
         totals,
