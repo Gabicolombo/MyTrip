@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TripDestination } from '../entities/trips-destinations.entity';
 import { AddTripDestinationDto } from '../dto/add-trip-destination.dto';
+import { In } from 'typeorm';
 
 @Injectable()
 export class TripsDestinationsRepository {
@@ -32,6 +33,16 @@ export class TripsDestinationsRepository {
   async findById(id: string): Promise<TripDestination | null> {
     return await this.tripsDestinationsRepo.findOne({
       where: { id },
+      relations: ['trip'],
+    });
+  }
+
+  async findDestinationByTripId(
+    tripId: number,
+    destinationIds: string[],
+  ): Promise<TripDestination[]> {
+    return await this.tripsDestinationsRepo.find({
+      where: { trip: { id: tripId }, id: In(destinationIds) },
       relations: ['trip'],
     });
   }

@@ -1,6 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { TripDestination } from './trips-destinations.entity';
 import { TripParticipant } from './trips-participants.entity';
+import { Transports } from './transports.entity';
 
 @Entity()
 export class Trips {
@@ -34,6 +35,11 @@ export class Trips {
     cascade: true,
   })
   participants!: TripParticipant[];
+
+  @OneToMany(() => Transports, (transport) => transport.trip, {
+    cascade: true,
+  })
+  transports!: Transports[];
 
   @Column({ nullable: true })
   imageUrl?: string;

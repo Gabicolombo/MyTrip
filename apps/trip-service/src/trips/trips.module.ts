@@ -6,18 +6,22 @@ import { ItineraryController } from './controllers/itinerary.controller';
 import { ParticipantsController } from './controllers/participants.controller';
 import { InvitesController } from './controllers/invites.controller';
 import { VisaController } from './controllers/visa.controller';
+import { TransportsController } from './controllers/transports.controller';
 import { TripsService } from './services/trips.service';
 import { DestinationsService } from './services/destinations.service';
 import { ItineraryService } from './services/itinerary.service';
 import { ParticipantsService } from './services/participants.service';
+import { TransportsService } from './services/transports.service';
 import { InvitesService } from './services/invites.service';
 import { VisaService } from './services/visa.service';
 import { TripsRepository } from './repositories/trips.repository';
 import { TripsParticipantsRepository } from './repositories/tripsParticipants.repository';
+import { TransportsRepository } from './repositories/transports.repository';
 import { DatabaseModule } from 'y/database/database.module';
 import { Trips } from './entities/trips.entity';
 import { TripParticipant } from './entities/trips-participants.entity';
 import { TripDestination } from './entities/trips-destinations.entity';
+import { Transports } from './entities/transports.entity';
 import { VisaCheckEntity } from './entities/visa-check.entity';
 import { ItineraryEntity } from './entities/itinerary.entity';
 import { AuthModule } from 'apps/auth-service/src/auth/auth.module';
@@ -45,6 +49,7 @@ import { TripsInvites } from './entities/trips-invites.entity';
       VisaCheckEntity,
       TripsInvites,
       User,
+      Transports,
     ]),
     AuthModule,
     UsersModule,
@@ -59,6 +64,7 @@ import { TripsInvites } from './entities/trips-invites.entity';
     DestinationsService,
     ItineraryService,
     ParticipantsService,
+    TransportsService,
     InvitesService,
     VisaService,
     TripsRepository,
@@ -66,6 +72,7 @@ import { TripsInvites } from './entities/trips-invites.entity';
     TripsDestinationsRepository,
     ItineraryRepository,
     TripsInvitesRepository,
+    TransportsRepository,
     VisaRepository,
     TripsResolver,
   ],
@@ -75,6 +82,7 @@ import { TripsInvites } from './entities/trips-invites.entity';
     ItineraryController,
     ParticipantsController,
     InvitesController,
+    TransportsController,
     VisaController,
   ],
 })
